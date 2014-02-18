@@ -592,7 +592,7 @@ namespace Isis
         internal static int ISIS_GROUPPORT = 11002;
         internal static int ISIS_MCRANGE_LOW = 5000;            // Isis allocates virtual IPMC addresses in this range; must be large enough to permit groups to have unique gaddrs.  
         internal static int ISIS_MCRANGE_HIGH = ISIS_MCRANGE_LOW + 500000;          // Physical ones use same range but are managed by Dr. Multicast
-        internal static int ISIS_DEFAULT_PORTNOp = 9753;        // Listener port for incoming P2PSocket connection requests' AckSocket uses ISIS_DEFAULT_PORTNOp+1
+		internal static int ISIS_DEFAULT_PORTNOp = 9843;        // Listener port for incoming P2PSocket connection requests' AckSocket uses ISIS_DEFAULT_PORTNOp+1
         internal static int ISIS_DEFAULT_PORTNOa = ISIS_DEFAULT_PORTNOp + 1;        // Listener port for incoming AckSocket connection requests
         internal static int ISIS_MAXIPMCADDRS = 25;              // Limit on how many IPMC addresses can be in use other than for OOB code.  WARNING: Can be temporarily exceeded while remapping.
         internal static int OOBMAXIPMCADDRS = 250;               // Limit on how many IPMC addresses can be used for OOB code
