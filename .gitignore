@@ -110,3 +110,6 @@ UpgradeLog*.XML
 
 # Executables
 *.exe
+
+# User preferences
+*.userprefs
