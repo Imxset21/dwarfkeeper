@@ -113,3 +113,6 @@ UpgradeLog*.XML
 
 # User preferences
 *.userprefs
+*.mdb
+*.sln
+*.csproj

@@ -26,6 +26,7 @@ namespace DwarfServer
 			Console.WriteLine ("Starting Server on " + iphost.AddressList[0] + ":" + (Isis.Isis.ISIS_DEFAULT_PORTNOp + 2));
 			server.Start ();
 
+			//TODO: Write actual event loop for Server
 			Console.WriteLine ("Waiting for client connection...");
 			TcpClient client =  server.AcceptTcpClient ();
 
