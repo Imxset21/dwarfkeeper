@@ -2,7 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace dwarfkeeper
+namespace DwarfTree
 {
 	//TODO Serizalization: For persistant state and/or data transfer
 	public class DwarfTree
