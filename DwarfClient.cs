@@ -9,53 +9,53 @@ namespace dwarfkeeper
 {
 	public class DwarfClient
 	{
-		private TcpClient tcp_client; 			//! TCP Client for remote connection
-		private IPEndPoint server_ip_endpoint;	//! IP address of server
-		private NetworkStream network_stream;	//! Network stream
+		private TcpClient tcpClient; 			//!< TCP Client for remote connection
+		private IPEndPoint serverIpEndpoint;	//!< IP address of server
+		private NetworkStream networkStream;	//!< Network stream
 
 		/** Common setup for class constructors.
 		 * 
-		 * @param	server_ip	IP Address of the server as a string
-		 * @param	port_num	Port number as an integer
+		 * @param	serverIp	IP Address of the server as a string
+		 * @param	portNum    	Port number as an integer
 		 */
-		private void init_cli(string server_ip, int port_num)
+		private void initCli(string serverIp, int portNum)
 		{
-			this.server_ip_endpoint = new IPEndPoint(IPAddress.Parse(server_ip), port_num);
-			this.tcp_client = new TcpClient();
-			this.network_stream = null;
+			this.serverIpEndpoint = new IPEndPoint(IPAddress.Parse(serverIp), portNum);
+			this.tcpClient = new TcpClient();
+			this.networkStream = null;
 		}
 
 		/** Creates a CLI instance with server IP and port number
 		 * 
-		 * @param	server_ip	IP Address of the server as a string
-		 * @param	port_num	Port number as an integer
+		 * @param	serverIp    IP Address of the server as a string
+		 * @param	portNum     Port number as an integer
 		 */
-		public DwarfClient(string server_ip, int port_num)
+		public DwarfClient(string serverIp, int portNum)
 		{
-			init_cli(server_ip, port_num);
+			this.initCli(serverIp, portNum);
 		}
 
 		/** Creates a CLI instance with input of the form IP_ADDR:PORT_NUM
 		 * 
-		 * @param	server_ip_and_port	String containing IP_ADDR:PORT_NUM
+		 * @param	serverIpPort	String containing IP_ADDR:PORT_NUM
 		 */
-		public DwarfClient(string server_ip_and_port)
+		public DwarfClient(string serverIpPort)
 		{
-			string[] server_args = server_ip_and_port.Split(new Char[] {':'} );
-			string server_ip = server_args[0];
-			int port_num = int.Parse(server_args[1]);
-			init_cli(server_ip, port_num);
+			string[] serverArgs = serverIpPort.Split(new Char[] {':'} );
+			string serverIp = serverArgs[0];
+			int portNum = int.Parse(serverArgs[1]);
+			this.initCli(serverIp, portNum);
 		}
 
 		/** Gets connection status.
 		 * 
-		 * @return	Connection status as a bool.
+		 * @return Connection status as a bool.
 		 */
-		public bool get_connection_status()
+		public bool getConnectionStatus()
 		{
-			if (this.tcp_client != null)
+			if (this.tcpClient != null)
 			{
-				return this.tcp_client.Connected;
+				return this.tcpClient.Connected;
 			} else {
 				return false;
 			}
@@ -67,37 +67,38 @@ namespace dwarfkeeper
 		 * Otherwise we try as many times as specified, waiting
 		 * for the timeout between each attempt.
 		 * 
-		 * @param	num_retries	Number of times to re-try connection
-		 * @param	time_out	Number of seconds to wait for reconnect
+		 * @param	numRetries	Number of times to re-try connection
+		 * @param	timeOut     Number of seconds to wait for reconnect
 		 */
-		public void connect(int num_retries = 0, int time_out = 0)
+		public void connect(int numRetries = 0, int timeOut = 0)
 		{
-			if (this.tcp_client == null) 
+			if (this.tcpClient == null) 
 			{
-				this.tcp_client = new TcpClient();
+				this.tcpClient = new TcpClient();
 			}
 
 			do
 			{
 				try 
 				{
-					this.tcp_client.Connect(this.server_ip_endpoint);
-				} catch (SocketException socket_excpt) {
-					Console.WriteLine("Caught socket exception while connecting to "+this.server_ip_endpoint.ToString());
+					this.tcpClient.Connect(this.serverIpEndpoint);
+				} catch (SocketException socketExcpt) {
+					Console.WriteLine("Caught socket exception while connecting to "
+									  + this.serverIpEndpoint.ToString());
 
-					num_retries--;
+					numRetries--;
 
-					if (num_retries > 0)
+					if (numRetries > 0)
 					{
 						Console.WriteLine("Retrying...");
-						Thread.Sleep(time_out);
+						Thread.Sleep(timeOut);
 					}
 				}
-			} while (num_retries > 0 && !this.tcp_client.Connected);
+			} while (numRetries > 0 && !this.tcpClient.Connected);
 
-			if (this.tcp_client.Connected)
+			if (this.tcpClient.Connected)
 			{
-				this.network_stream = this.tcp_client.GetStream();
+				this.networkStream = this.tcpClient.GetStream();
 				Console.WriteLine("Connection successful!");
 			} else {
 				Console.WriteLine("Connection failed.");
@@ -108,13 +109,13 @@ namespace dwarfkeeper
 		 * 
 		 * If the connection is already closed, it's a no-op.
 		 */
-		public void close_connection()
+		public void closeConnection()
 		{
-			if (get_connection_status())
+			if (this.getConnectionStatus())
 			{
-				this.network_stream.Close();
-				this.tcp_client.Close();
-				this.tcp_client = null;
+				this.networkStream.Close();
+				this.tcpClient.Close();
+				this.tcpClient = null;
 				Console.WriteLine("Connection closed.");
 			} else {
 				Console.WriteLine("Connection is already closed.");
@@ -129,9 +130,9 @@ namespace dwarfkeeper
 		 * 
 		 * @param	msg	Message to send to server
 		 */
-		public void send_message(string msg)
+		public void sendMessage(string msg)
 		{
-			if (!this.get_connection_status())
+			if (!this.getConnectionStatus())
 			{
 				Console.WriteLine("Cannot send message: disconnected");
 				return;
@@ -141,11 +142,11 @@ namespace dwarfkeeper
 
 			try
 			{
-				this.network_stream.Write(BitConverter.GetBytes ((Int32)msgbuffer.Length), 0, sizeof(Int32));
-				this.network_stream.Write(msgbuffer, 0, msgbuffer.Length);
-			} catch (System.IO.IOException socket_excpt) {
+				this.networkStream.Write(BitConverter.GetBytes((Int32)msgbuffer.Length), 0, sizeof(Int32));
+				this.networkStream.Write(msgbuffer, 0, msgbuffer.Length);
+			} catch (System.IO.IOException socketExcpt) {
 				Console.WriteLine("Failed to send message to server. Closing connection... ");
-				this.close_connection();
+				this.closeConnection();
 			}
 		}
 	}

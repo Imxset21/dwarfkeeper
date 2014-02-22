@@ -12,83 +12,130 @@ using dwarfkeeper; // Import Client
 
 namespace DwarfCLI
 {
-	public delegate void dwarf_cmd(string args);
+	// Command delegate type for CLI/Client commands
+	public delegate void dwarfCmd(string args);
 
 	public class DwarfCLI
 	{
-		private bool is_running;
-		private DwarfClient client;
-		private Dictionary<string, dwarf_cmd> dwarf_cmds;
+		private bool isRunning;                            //!< Current running status
+		private DwarfClient client;                        //!< Client backend
+		private Dictionary<string, dwarfCmd> dwarfCmds;    //!< Command delegate dictionary
 
+		/** Creates a command-line-interface client wrapper.
+		 *
+         * By default this is considered to be running.
+         *
+		 */
 		public DwarfCLI()
 		{
 			this.client = null;
-			this.is_running = true;
+			this.isRunning = true;
 			
-			dwarf_cmds = new Dictionary<string, dwarf_cmd>();
-			dwarf_cmds["connect"] = this.connect;
-			dwarf_cmds["disconnect"] = this.disconnect;
-			dwarf_cmds["send_message"] = this.send_message;
-			dwarf_cmds["connection_status"] = this.connection_status;
-			dwarf_cmds["exit"] = this.exit;
+			// Setup delegate dictionary
+			this.dwarfCmds = new Dictionary<string, dwarfCmd>();
+			this.dwarfCmds["connect"] = this.connect;
+			this.dwarfCmds["disconnect"] = this.disconnect;
+			this.dwarfCmds["sendMessage"] = this.sendMessage;
+			this.dwarfCmds["connectionStatus"] = this.connectionStatus;
+			this.dwarfCmds["exit"] = this.exit;
 		}
 
-		public DwarfCLI(string ip_addr) : this()
+		/** Creates a CLI with the given server IP address.
+		 *
+		 * @param ipAddr IP address of the server
+		 */
+		public DwarfCLI(string ipAddr) : this()
 		{
-			this.client = new dwarfkeeper.DwarfClient(ip_addr);
+			this.client = new dwarfkeeper.DwarfClient(ipAddr);
 		}
 
-		public DwarfCLI(string ip_addr, int port_num) : this()
+		/** Creates a CLI with the given server IP and port.
+		 *
+		 * @param ipAddr IP address of the server
+		 * @param portNum Port number of the server
+		 */
+		public DwarfCLI(string ipAddr, int portNum) : this()
 		{
-			this.client = new dwarfkeeper.DwarfClient(ip_addr, port_num);
+			this.client = new dwarfkeeper.DwarfClient(ipAddr, portNum);
 		}
 
-		public bool get_running_status()
+		/** Gets current running status.
+		 *
+		 * @return Running status
+		 */
+		public bool getRunningStatus()
 		{
-			return this.is_running;
+			return this.isRunning;
 		}
 
-		private void send_message(string args)
+		/** Sends a message to the server.
+		 *
+		 * If no message is provided, the user is prompted.
+		 * 
+		 * @param args Message to be sent
+		 */
+		private void sendMessage(string args)
 		{
 			if (String.IsNullOrWhiteSpace(args))
 			{
 				Console.Write("\nEnter Message: ");
 				String msg = Console.ReadLine();
-				this.client.send_message(msg);
+				this.client.sendMessage(msg);
 			} else {
-				this.client.send_message(args);
+				this.client.sendMessage(args);
 			}
 
 			return;
 		}
 
-		private void connection_status(string args)
+		/** Gets connection status.
+		 *
+		 *  Note that this is distinct from running status.
+		 */
+		private void connectionStatus(string args)
 		{
 			Console.WriteLine("Connection status: " +
-								(this.client.get_connection_status() ? "Open" : "Closed"));
-			return;
-		}
-		
-		private void disconnect(string args)
-		{
-			this.client.close_connection();
+								(this.client.getConnectionStatus() ? "Open" : "Closed"));
 			return;
 		}
 
+		/** Disconnects (closes connection to) the server.
+		 *
+		 *
+		 */
+		private void disconnect(string args)
+		{
+			this.client.closeConnection();
+			return;
+		}
+
+		/** Connects to the server.
+		 *
+		 * @param args Arguments regarding connection attempts/timeout
+		 */
 		private void connect(string args)
 		{
+			//TODO: Parse connect() args w/ reasonable defaults
 			this.client.connect(5, 1000);
 			return;
 		}
 
+		/** Disconnects from server and exits the interface.
+		 *
+		 * @param args Arguments to pass to disconnect().
+		 */
 		private void exit(string args)
 		{
 			this.disconnect(args);
-			this.is_running = false;
+			this.isRunning = false;
 			return;
 		}
 
-		private void parse_cmd(string cmd)
+		/** Parses a user command to a delegate function.
+		 *
+		 * @param cmd Command to be parsed
+		 */
+		private void parseCmd(string cmd)
 		{
 			//TODO: Parse cmd, seperate command from command args
 			if (String.IsNullOrWhiteSpace(cmd))
@@ -96,25 +143,25 @@ namespace DwarfCLI
 				return;
 			}
 
-			string[] cmd_and_args = cmd.Split(new Char[] {' '}, 2);
+			string[] cmdAndArgs = cmd.Split(new Char[] {' '}, 2);
 			string args = null;
 
-			cmd = cmd_and_args[0];
+			cmd = cmdAndArgs[0];
 
 			try
 			{
-				args = cmd_and_args[1];
-			} catch (IndexOutOfRangeException oor_e) {
+				args = cmdAndArgs[1];
+			} catch (IndexOutOfRangeException oorE) {
 				;
 			}
 			
 
 			try
 			{
-				dwarf_cmds[cmd](args);
-			} catch (KeyNotFoundException k_e) {
+				this.dwarfCmds[cmd](args);
+			} catch (KeyNotFoundException kE) {
 				Console.WriteLine("Unrecognized Command: "+cmd);
-			} catch (ArgumentNullException an_e){
+			} catch (ArgumentNullException anE){
 				;
 			}
 			return;
@@ -134,11 +181,11 @@ namespace DwarfCLI
 			}
 
 			// Event loop
-			while (cli.get_running_status()) // Loop indefinitely
+			while (cli.getRunningStatus()) // Loop indefinitely
 			{
 				Console.Write("\n>>DwarfKeeper: "); // Prompt
 				string line = Console.ReadLine(); // Get string from user
-				cli.parse_cmd(line);
+				cli.parseCmd(line);
 			}
 
 		}

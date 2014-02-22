@@ -9,73 +9,93 @@ namespace DwarfServer
 {
 	public class DwarfServer
 	{
-		const int DEFAULT_PORT_NUM = 9845;
+		const int DEFAULT_PORT_NUM = 9845;      //!< Default port number (Isis' default + 2)
 
-		private IPHostEntry iphost;
-		private TcpListener tcp_server;
-		private TcpClient tcp_client;
-		private NetworkStream network_stream;
+		private IPHostEntry iphost;             //!< IP entry point for this host
+		private TcpListener tcpServer;          //!< TCP server listener
+		private TcpClient tcpClient;            //!< TCP client connection
+		private NetworkStream networkStream;    //!< Network stream for message passing
 
+		/** Initializes a server with a given/default port number.
+		 *
+		 * @param portnum Default port number or user override.
+		 *
+		 */
         public DwarfServer(int portnum = DEFAULT_PORT_NUM)
 		{
 			// Set this to our actual IP (according to DNS)
 			this.iphost = Dns.GetHostEntry(Dns.GetHostName());
 
 			// Set the server to listen for connections on the Isis default port num + 2
-			this.tcp_server = new TcpListener(new IPEndPoint(iphost.AddressList[0], portnum));
+			this.tcpServer = new TcpListener(new IPEndPoint(iphost.AddressList[0], portnum));
 
-			this.tcp_client = null;
-			this.network_stream = null;
+			this.tcpClient = null;
+			this.networkStream = null;
 		}
-
-		public void server_start()
+		
+		/** Starts the TCP server on localhost with port number.
+		 *
+		 */
+		public void serverStart()
 		{
-			Console.WriteLine("Starting Server on " + this.tcp_server.ToString());
+			Console.WriteLine("Starting Server on " + this.tcpServer.ToString());
 
 			//TODO: What to do server is still active. No-op?
-			this.tcp_server.Start();
+			this.tcpServer.Start();
 		}
 
-		public void wait_for_client(int timeout = 0)
+		/** Wait for the client to connect with given timeout.
+		 * 
+		 * Note that this initializes the network stream after connecting.
+		 *
+		 * @param timeout Timeout for waiting for client.
+		 *
+		 */
+		public void waitForClient(int timeout = 0)
 		{
-			if (timeout == 0 || this.tcp_server.Pending())
+			if (timeout == 0 || this.tcpServer.Pending())
 			{
 				// Attempt to get the connection immediately if
 				// 1) We don't care about timeouts (will block)
 				// 2) We have a client already trying to connect
-				this.tcp_client = this.tcp_server.AcceptTcpClient();
+				this.tcpClient = this.tcpServer.AcceptTcpClient();
 			} else { 
+				//TODO: Implement waitForClient() timeout
 				throw new NotImplementedException();
 			}
 			
-			this.network_stream = this.tcp_client.GetStream();
+			this.networkStream = this.tcpClient.GetStream();
 		}
-
-		public string get_message()
+		
+		/** Gets message sent from client.
+		 *
+		 * @return String message sent by client.
+		 */
+		public string getMessage()
 		{
 			byte[] inbuffer = new byte[256];
 
 			byte[] header = new byte[4];
-            this.network_stream.Read (header, 0, header.Length);
+            this.networkStream.Read (header, 0, header.Length);
 			Int32 msglen = System.BitConverter.ToInt32(header, 0);
 
 			inbuffer = new byte[msglen];
-			this.network_stream.Read(inbuffer, 0, inbuffer.Length);
+			this.networkStream.Read(inbuffer, 0, inbuffer.Length);
 			string msg = System.Text.Encoding.Unicode.GetString(inbuffer);
 			return msg;
 		}
 
 		static void Main(string[] args)
 		{
-			DwarfServer dwarf_server = new DwarfServer();
-			dwarf_server.server_start();
+			DwarfServer dwarfServer = new DwarfServer();
+			dwarfServer.serverStart();
 
 			Console.WriteLine ("Waiting for client connection...");
-			dwarf_server.wait_for_client();
+			dwarfServer.waitForClient();
 			
 			while (true)
 			{
-				Console.WriteLine(dwarf_server.get_message());
+				Console.WriteLine(dwarfServer.getMessage());
 				// dwarf_server.wait_for_client();
 			}
 		}
