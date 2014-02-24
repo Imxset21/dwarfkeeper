@@ -9,16 +9,19 @@ using dwarfkeeper; // Import Client
 
 //FIXME:	There is a bug that if send_message is the first command, 
 //			(without any setup) the client crashes with a null pointer exception.
+//FIXME:    Make a DwarfCMD class to parse commands on the CLI and on DwarfServer
 
 namespace DwarfCLI
 {
 	// Command delegate type for CLI/Client commands
+	//TODO: Move to DwarfCMD Class
 	public delegate void dwarfCmd(string args);
 
 	public class DwarfCLI
 	{
 		private bool isRunning;                            //!< Current running status
 		private DwarfClient client;                        //!< Client backend
+		//TODO: Move to DwarfCMD Class
 		private Dictionary<string, dwarfCmd> dwarfCmds;    //!< Command delegate dictionary
 
 		/** Creates a command-line-interface client wrapper.
@@ -135,7 +138,7 @@ namespace DwarfCLI
 		 *
 		 * @param cmd Command to be parsed
 		 */
-		private void parseCmd(string cmd)
+		private void parseCmd(string cmd) //TODO: Move to DwarfCMD
 		{
 			//TODO: Parse cmd, seperate command from command args
 			if (String.IsNullOrWhiteSpace(cmd))

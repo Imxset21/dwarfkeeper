@@ -115,9 +115,6 @@ UpgradeLog*.XML
 *.userprefs
 *.mdb
 
-# These do not contain local preferences
-# *.sln
-# *.csproj
 
 *.sln.*
 *.csproj.*
