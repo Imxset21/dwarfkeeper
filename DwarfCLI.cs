@@ -6,23 +6,17 @@ using System.Text;
 using System.Collections.Generic;
 
 using dwarfkeeper; // Import Client
+using DwarfCMD;
 
 //FIXME:	There is a bug that if send_message is the first command, 
 //			(without any setup) the client crashes with a null pointer exception.
-//FIXME:    Make a DwarfCMD class to parse commands on the CLI and on DwarfServer
 
 namespace DwarfCLI
 {
-	// Command delegate type for CLI/Client commands
-	//TODO: Move to DwarfCMD Class
-	public delegate void dwarfCmd(string args);
-
-	public class DwarfCLI
+	public class DwarfCLI : DwarfCMD.DwarfCMD
 	{
 		private bool isRunning;                            //!< Current running status
 		private DwarfClient client;                        //!< Client backend
-		//TODO: Move to DwarfCMD Class
-		private Dictionary<string, dwarfCmd> dwarfCmds;    //!< Command delegate dictionary
 
 		/** Creates a command-line-interface client wrapper.
 		 *
@@ -35,12 +29,12 @@ namespace DwarfCLI
 			this.isRunning = true;
 			
 			// Setup delegate dictionary
-			this.dwarfCmds = new Dictionary<string, dwarfCmd>();
-			this.dwarfCmds["connect"] = this.connect;
-			this.dwarfCmds["disconnect"] = this.disconnect;
-			this.dwarfCmds["sendMessage"] = this.sendMessage;
-			this.dwarfCmds["connectionStatus"] = this.connectionStatus;
-			this.dwarfCmds["exit"] = this.exit;
+			base.dwarfCmds = new Dictionary<string, dwarfCmd>();
+			base.dwarfCmds["connect"] = this.connect;
+			base.dwarfCmds["disconnect"] = this.disconnect;
+			base.dwarfCmds["sendMessage"] = this.sendMessage;
+			base.dwarfCmds["connectionStatus"] = this.connectionStatus;
+			base.dwarfCmds["exit"] = this.exit;
 		}
 
 		/** Creates a CLI with the given server IP address.
@@ -133,43 +127,6 @@ namespace DwarfCLI
 			this.isRunning = false;
 			return;
 		}
-
-		/** Parses a user command to a delegate function.
-		 *
-		 * @param cmd Command to be parsed
-		 */
-		private void parseCmd(string cmd) //TODO: Move to DwarfCMD
-		{
-			//TODO: Parse cmd, seperate command from command args
-			if (String.IsNullOrWhiteSpace(cmd))
-			{
-				return;
-			}
-
-			string[] cmdAndArgs = cmd.Split(new Char[] {' '}, 2);
-			string args = null;
-
-			cmd = cmdAndArgs[0];
-
-			try
-			{
-				args = cmdAndArgs[1];
-			} catch (IndexOutOfRangeException oorE) {
-				;
-			}
-			
-
-			try
-			{
-				this.dwarfCmds[cmd](args);
-			} catch (KeyNotFoundException kE) {
-				Console.WriteLine("Unrecognized Command: "+cmd);
-			} catch (ArgumentNullException anE){
-				;
-			}
-			return;
-		}
-
 
 		static void Main(string[] args) 
 		{
