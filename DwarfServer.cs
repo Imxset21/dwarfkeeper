@@ -6,11 +6,13 @@ using System.Text;
 using System.Collections.Generic;
 
 using DwarfCMD;
+using DwarfTree;
 using Isis;
 
 namespace DwarfServer
 {
 
+    //TODO: Add logging of some sort to servers - Hook into Isis logging?
 	public class DwarfServer : DwarfCMD.DwarfCMD
 	{
 		const int DEFAULT_PORT_NUM = 9845;      //!< Default port number (Isis' default + 2)
@@ -19,6 +21,7 @@ namespace DwarfServer
 		private TcpListener tcpServer;          //!< TCP server listener
 		private TcpClient tcpClient;            //!< TCP client connection
 		private NetworkStream networkStream;    //!< Network stream for message passing
+        private DwarfTree.DwarfTree nodeSys;              //!< Underlying node file system
 
 		/** Initializes a server with a given/default port number.
 		 *
@@ -45,35 +48,77 @@ namespace DwarfServer
 			base.dwarfCmds["stat"] = this.stat;
 			base.dwarfCmds["ls"] = this.getChildren;
 			base.dwarfCmds["sync"] = this.sync; //TODO: Eventually implement (maybe)
+
+            // Start a new DwarfTree instance for this server instance
+            nodeSys = DwarfTree.DwarfTree.CreateTree();
 		}
 
+        /** Create the node at path - CLI command is "create".
+         */
 		private void create(string args)
 		{
-			throw new NotImplementedException("Create is not implemented.");
+            string[] argslst = args.Split();
+            if(argslst.Length < 2) {
+                return;
+            }
+
+            //TODO support ACL inputs
+            //TODO support error messages on bad node adds
+            bool success = nodeSys.addNode(argslst[0], argslst[1]);
+			throw new NotImplementedException("create is not implemented.");
 		}
 		
 		private void delete(string args)
 		{
+            string[] argslst = args.Split();
+            if(argslst.Length < 1) {
+                return;
+            }
+            //TODO: Enable Logging & user feedback
+            bool success = nodeSys.removeNode(argslst[0]);
 			throw new NotImplementedException("rmr is not implemented.");
 		}
 
 		private void getNode(string args)
 		{
+            //TODO Support watches
+            string[] argslst = args.Split();
+            if(argslst.Length < 1) {
+                return;
+            }
+            Dictionary<string, string> stat = nodeSys.getNode(argslst[0]);
 			throw new NotImplementedException("get is not implemented.");
 		}
 
 		private void setNode(string args)
 		{
+            string[] argslst = args.Split();
+            if(argslst.Length < 2) {
+                return;
+            }
+            bool success = nodeSys.setData(argslst[0], argslst[1]);
 			throw new NotImplementedException("set is not implemented.");
 		}
 
 		private void stat(string args)
 		{
+            //TODO Support watches
+            string[] argslst = args.Split();
+            if(argslst.Length < 1) {
+                return;
+            }
+            Dictionary<string, string> stats = nodeSys.getNodeInfo(argslst[0]);
 			throw new NotImplementedException("stat is not implemented.");			
 		}
 
 		private void getChildren(string args)
 		{
+            //TODO Support watches
+            string[] argslst = args.Split();
+            if(argslst.Length < 1) {
+                return;
+            }
+            Dictionary<string, string> stats = nodeSys.getChildList(argslst[0]);
 			throw new NotImplementedException("ls is not implemented.");			
 		}
 		

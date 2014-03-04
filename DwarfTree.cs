@@ -12,8 +12,9 @@ namespace DwarfTree
 	{
         //! The "name" of the node at the head of this (sub)tree
 		public string name { get; private set;} 
-        //! The data contained by this node
-        string Data;
+
+        string Data; //!< Private data field for this node
+        //! The data contained by this node (public getter and setter)
 		public string data {
             get {
                 return Data;
@@ -43,25 +44,47 @@ namespace DwarfTree
 
 
 		/** Simple factory method to start a new tree.
+         *
+         * @param filepath The file from which to load the tree if wanted.
+         *                  Defaults to "", which just creates a new tree.
+         * @returns A new DwarfTree or tree loaded from disk if path is non-empty.
+         *          Null if path is non-empty and loading from file fails
 		 */
-		public static DwarfTree createTree(string path = "") {
+		public static DwarfTree CreateTree(string filepath = "") {
 			DwarfTree tree;
-			if(!path.Equals("") && (tree = loadTree(path)) == null) {
-				return tree;
+			if(!filepath.Equals("")) {
+                return loadTree(filepath);
 			}
 			return new DwarfTree();
 		}
         
-
-        /** A set of information about the node given by path.
+        /** Set the node at path to contain new data
          *
          * @param path The path to the wanted node.
-         * @return A <string, string> dictionary from field/info name to value
+         * @param data The new data for the node.
+         * @return True if the data is successfully set, false otherwise.
          */
-        public Dictionary<string, string> stat(string path) {
+        public bool setData(string path, string newData) {
             DwarfTree tree = this.findNode(path);
             if(tree == null) {
-                return null;
+                return false;
+            }
+            tree.data = newData;
+            return true;
+        }
+
+        /** Get information about the given node
+         *
+         * @param node The node (DwarfTree) that you want information about
+         * @return A <string, string> dictionary from field/info name to value
+         */
+        public Dictionary<string, string> getNodeInfo(string path = null) {
+            DwarfTree tree = this;
+            if(null != path) {
+                DwarfTree tree = this.findNode(path);
+                if(null == tree) {
+                    return null;
+                }
             }
             
             return new Dictionary<string, string>() {
@@ -72,33 +95,38 @@ namespace DwarfTree
             };
         }
 
-        
-        /** Set the node at path to contain new data
+        /** Return select information about the node at path, including the contained data.
          *
          * @param path The path to the wanted node.
-         * @param data The new data for the node.
-         * @return True if the data is successfully set, false otherwise.
+         * @return A Dictionary from field/info name to value
          */
-        public bool setData(string path, string data) {
+        public Dictionary<string, string> getNode(string path) {
             DwarfTree tree = this.findNode(path);
-            if(tree == null) {
-                return false;
-            }
-            tree.data = data;
-            return true;
-        }
-
-        /** Get the data from the node given by path.
-         *
-         * @param path The path to the wanted node
-         * @return The data contained by the node, null if the node does not exist.
-         */
-        public string getData(string path) {
-            DwarfTree tree = this.findNode(path);
-            if(tree == null) {
+            if(null == tree) {
                 return null;
             }
-            return tree.data;
+
+            Dictionary<string, string> nodeInfo = tree.getNodeInfo();
+            nodeInfo.Add("data", tree.data);
+            return nodeInfo;
+        }
+
+        /** Get a list of the children of the node given by path.
+         *
+         * @param path The path to the wanted node
+         * @return a sorted list of the child names
+         */
+        public Dictionary<string, string> getChildList(string path) {
+            DwarfTree tree = this.findNode(path);
+            if(null == tree) {
+                return null;
+            }
+
+            Dictionary<string, string> nodeInfo = tree.getNodeInfo();
+            string[] childnames = tree.children.Keys.ToArray();
+            Arrays.Sort(childnames);
+            nodeInfo.Add("children", string.Join(",", childnames);
+            return nodeInfo;
         }
 
 		/** Add a node at location path with data newdata.
@@ -151,15 +179,15 @@ namespace DwarfTree
 
         /** Return the DwarfTree at location path if it exists, return null otherwise.
          * 
-         * @param path The location of the node/subtree
+         * @param path The location of the node/subtree 
          * @param stop The number of nodes before the end of the path to stop (e.g stop=1 will
-         *             omit the last 1 node in the path during the search)
+         *             omit the last 1 node in the path during the search).
+         *             Must be a values in range [0, path length)
          */
         public DwarfTree findNode(string path, int stop = 0) {
             DwarfTree subtree = this;
             string loc;
-			string[] path_elements = 
-				path.Split(new char[] {'/'}, StringSplitOptions.RemoveEmptyEntries);
+			string[] path_elements = path.Split(pathdelim, StringSplitOptions.RemoveEmptyEntries);
 			int pathlen = path_elements.Length;
 
 			if(pathlen == 0) {
@@ -167,8 +195,12 @@ namespace DwarfTree
                     return subtree;
                 }
 				return null;
-			}
+			} else if (stop > pathlen || stop < 0) {
+                // Bounding the input
+                return null;
+            }
             
+            // Iteratively search through tree until node 
 			Dictionary<string, DwarfTree> cur_children = children;
 			for (int i = 0; i < (pathlen - stop); i++) {
 				loc = path_elements[i];
@@ -238,9 +270,11 @@ namespace DwarfTree
 			return tree;
 		}
 
-        /** Tests for the DwarfTree class. */
+        /** Tests for the DwarfTree class. 
+         * TODO: Add compiler flag so we don't need to set -main in Makefile
+         */
 		static void Main(string[] args) {
-			DwarfTree tree = DwarfTree.createTree();
+			DwarfTree tree = DwarfTree.CreateTree();
 			tree.printTree();
 
 			Console.WriteLine("\n*** Init Tree / Adding Nodes ***\n");
