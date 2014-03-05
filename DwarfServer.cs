@@ -162,6 +162,14 @@ namespace DwarfServer
 			this.networkStream = this.tcpClient.GetStream();
 		}
 		
+
+        /****************************************
+         *#######################################
+         * Connection/Messaging code
+         *#######################################
+         * **************************************/
+
+
 		/** Gets message sent from client.
 		 *
 		 * @return String message sent by client.
@@ -179,6 +187,51 @@ namespace DwarfServer
 			string msg = System.Text.Encoding.Unicode.GetString(inbuffer);
 			return msg;
 		}
+
+        
+		/** Gets connection status.
+		 * 
+		 * @return Connection status as a bool.
+		 */
+		public bool getConnectionStatus()
+		{
+			if (this.tcpClient != null)
+			{
+				return this.tcpClient.Connected;
+			} else {
+				return false;
+			}
+		}
+
+
+		/** Sends a string message to the client.
+		 * 
+		 * Message contents are sent through unmolested.
+		 * If we fail to write to the socket we assume that the
+		 * client has disconnected and close the connection.
+		 * 
+		 * @param	msg	Message to send to client
+		 */
+		public void sendMessage(string msg)
+		{
+			if (!this.getConnectionStatus())
+			{
+				Console.WriteLine("Cannot send message: disconnected");
+				return;
+			}
+
+			byte[] msgbuffer = Encoding.Unicode.GetBytes(msg); // Use UTF-8
+
+			try
+			{
+				this.networkStream.Write(BitConverter.GetBytes((Int32)msgbuffer.Length), 0, sizeof(Int32));
+				this.networkStream.Write(msgbuffer, 0, msgbuffer.Length);
+			} catch (System.IO.IOException socketExcpt) {
+                //TODO: Try to force client connectin closed?
+				Console.WriteLine("Failed to send message to server. Closing connection... ");
+			}
+		}
+
 
 		static void Main(string[] args)
 		{

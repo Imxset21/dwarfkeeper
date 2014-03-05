@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 
@@ -81,7 +82,7 @@ namespace DwarfTree
         public Dictionary<string, string> getNodeInfo(string path = null) {
             DwarfTree tree = this;
             if(null != path) {
-                DwarfTree tree = this.findNode(path);
+                tree = this.findNode(path);
                 if(null == tree) {
                     return null;
                 }
@@ -124,8 +125,8 @@ namespace DwarfTree
 
             Dictionary<string, string> nodeInfo = tree.getNodeInfo();
             string[] childnames = tree.children.Keys.ToArray();
-            Arrays.Sort(childnames);
-            nodeInfo.Add("children", string.Join(",", childnames);
+            System.Array.Sort(childnames);
+            nodeInfo.Add("children", string.Join(",", childnames));
             return nodeInfo;
         }
 
@@ -322,7 +323,7 @@ namespace DwarfTree
             tree.printTree();
 
             Console.WriteLine("\n***** Checking stat() on /mynode  ****\n");
-            Dictionary<string, string> mynodestat = tree.stat("/mynode");
+            Dictionary<string, string> mynodestat = tree.getNodeInfo("/mynode");
             foreach(var pair in mynodestat) {
                 Console.WriteLine("\t{0} : {1}", pair.Key, pair.Value);
             }

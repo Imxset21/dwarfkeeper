@@ -149,6 +149,25 @@ namespace dwarfkeeper
 				this.closeConnection();
 			}
 		}
+
+
+        private string waitForResponse() {
+            byte[] header = new byte[4];
+            this.networkStream.Read(header, 0, header.Length);
+            Int32 msglen = System.BitConverter.ToInt32(header,0);
+
+            byte[] inbuffer = new byte[msglen];
+            this.networkStream.Read(inbuffer, 0, inbuffer.Length);
+            string msg = System.Text.Encoding.Unicode.GetString(inbuffer);
+
+            return msg;
+        }
+
+
+        public string ls() {
+           string response = this.waitForResponse();
+           return response;
+        }
 	}
 
 
