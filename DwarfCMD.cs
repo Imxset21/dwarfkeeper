@@ -9,19 +9,19 @@ namespace DwarfCMD
 
     [AutoMarshalled]
     public class DwarfCommand {
-       public CMDCode opcode;
+    public const int MESSAGE = 0;
+
+       public int opcode;
        public string args;
 
        public DwarfCommand() {}
 
-       public DwarfCommand(CMDCode opcode, string args) {
+       public DwarfCommand(int opcode, string args) {
            this.args = args;
            this.opcode = opcode;
        }
+
+
     }
     
-    public enum CMDCode {
-        MESSAGE
-    }
-        
 }

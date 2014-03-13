@@ -175,15 +175,22 @@ namespace DwarfCLI
 		static void Main(string[] args) 
 		{
             IsisSystem.Start();
-            Group dwarfGroup = new Group("dwarfkeeper");
+            Isis.Client client = new Isis.Client("dwarfkeeper");
+
+
+            Isis.Msg.RegisterType(typeof(DwarfCommand), 111);
 
             List<string> stringydwarves = new List<string>();
-            int nr = dwarfGroup.Query(Group.ALL, 
-                    new Timeout(1000, Timeout.TO_FAILURE),
-                    0,
-                    new DwarfCommand(CMDCode.MESSAGE, "LOLOLOLOLOLOLOLOLOLOL"),
+            int nrc = client.P2PQuery(0,
+                    new DwarfCommand(DwarfCommand.MESSAGE, "GROOMP"),
                     new EOLMarker(),
                     stringydwarves);
+            //int nr = dwarfGroup.Query(Group.ALL, 
+            //        new Timeout(1000, Timeout.TO_FAILURE),
+            //        0,
+            //        new DwarfCommand(CMDCode.MESSAGE, "LOLOLOLOLOLOLOLOLOLOL"),
+            //        new EOLMarker(),
+            //        stringydwarves);
             foreach (string rep in stringydwarves) {
                 Console.WriteLine(rep);
             }

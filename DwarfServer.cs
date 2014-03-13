@@ -6,7 +6,6 @@ using System.Text;
 using System.Collections.Generic;
 using System.Threading;
 
-
 using DwarfCMD;
 using DwarfTree;
 using Isis;
@@ -208,6 +207,9 @@ namespace DwarfServer
                 //TODO: redirect
             };
 
+            dwarfGroup.AllowClientRequests(0);
+            Isis.Msg.RegisterType(typeof(DwarfCommand), 111);
+
             dwarfGroup.Join();
 
 			//TODO: What to do server is still active. No-op?
@@ -216,18 +218,14 @@ namespace DwarfServer
 
 		static void Main(string[] args)
 		{
-            IsisSystem.Start();
+            IsisSystem.Start(true);
 			DwarfServer dwarfServer = new DwarfServer();
 			dwarfServer.serverStart();
 
 			Console.WriteLine ("Waiting for client connection...");
 			//dwarfServer.waitForClient();
 			
-			while (true)
-			{
-  				//dwarfServer.parseCmd(dwarfServer.getMessage());
-				// dwarf_server.wait_for_client();
-			}
+            IsisSystem.WaitForever();
 		}
 	}
 }
