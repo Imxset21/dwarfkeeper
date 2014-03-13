@@ -7,13 +7,57 @@ using System.Collections.Generic;
 
 using dwarfkeeper; // Import Client
 using DwarfCMD;
+using Isis;
 
 //FIXME:	There is a bug that if send_message is the first command, 
 //			(without any setup) the client crashes with a null pointer exception.
 
 namespace DwarfCLI
 {
-	public class DwarfCLI : DwarfCMD.DwarfCMD
+    public abstract class DwarfCMD2
+    {
+        protected Dictionary<string, dwarfCmd> dwarfCmds;
+
+
+		/** Parses a user command to a delegate function.
+		 *
+		 * @param cmd Command to be parsed
+		 */
+		public void parseCmd(string cmd)
+		{
+			//TODO: Parse cmd, seperate command from command args
+			if (String.IsNullOrWhiteSpace(cmd))
+			{
+				return;
+			}
+
+			string[] cmdAndArgs = cmd.Split(new Char[] {' '}, 2);
+			string args = null;
+
+			cmd = cmdAndArgs[0];
+
+			try
+			{
+				args = cmdAndArgs[1];
+			} catch (IndexOutOfRangeException oorE) {
+				;
+			}
+			
+
+			try
+			{
+				dwarfCmds[cmd](args);
+			} catch (KeyNotFoundException kE) {
+				Console.WriteLine("Unrecognized Command: "+cmd);
+			} catch (ArgumentNullException anE){
+				;
+			}
+			return;
+		}
+    }
+
+
+	public class DwarfCLI : DwarfCMD2
 	{
 		private bool isRunning;                            //!< Current running status
 		private DwarfClient client;                        //!< Client backend
@@ -130,23 +174,39 @@ namespace DwarfCLI
 
 		static void Main(string[] args) 
 		{
-			DwarfCLI cli = null;
+            IsisSystem.Start();
+            Group dwarfGroup = new Group("dwarfkeeper");
 
-			// Setup CLI for server connection
-			if (args.Length == 0)
-			{
-				cli = new DwarfCLI("10.32.215.135", 9845);
-			} else {
-				cli = new DwarfCLI(args[0]);
-			}
+            List<string> stringydwarves = new List<string>();
+            int nr = dwarfGroup.Query(Group.ALL, 
+                    new Timeout(1000, Timeout.TO_FAILURE),
+                    0,
+                    new DwarfCommand(CMDCode.MESSAGE, "LOLOLOLOLOLOLOLOLOLOL"),
+                    new EOLMarker(),
+                    stringydwarves);
+            foreach (string rep in stringydwarves) {
+                Console.WriteLine(rep);
+            }
 
-			// Event loop
-			while (cli.getRunningStatus()) // Loop indefinitely
-			{
-				Console.Write("\n>>DwarfKeeper: "); // Prompt
-				string line = Console.ReadLine(); // Get string from user
-				cli.parseCmd(line);
-			}
+            IsisSystem.Shutdown();
+            
+			//DwarfCLI cli = null;
+
+			//// Setup CLI for server connection
+			//if (args.Length == 0)
+			//{
+			//	cli = new DwarfCLI("10.32.215.135", 9845);
+			//} else {
+			//	cli = new DwarfCLI(args[0]);
+			//}
+
+			//// Event loop
+			//while (cli.getRunningStatus()) // Loop indefinitely
+			//{
+			//	Console.Write("\n>>DwarfKeeper: "); // Prompt
+			//	string line = Console.ReadLine(); // Get string from user
+			//	cli.parseCmd(line);
+			//}
 
 		}
 	}

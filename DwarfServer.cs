@@ -4,6 +4,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Collections.Generic;
+using System.Threading;
+
 
 using DwarfCMD;
 using DwarfTree;
@@ -11,9 +13,11 @@ using Isis;
 
 namespace DwarfServer
 {
+    
+    delegate void dwarfHandler(DwarfCommand dwarfArgs);
 
     //TODO: Add logging of some sort to servers - Hook into Isis logging?
-	public class DwarfServer : DwarfCMD.DwarfCMD
+	public class DwarfServer
 	{
 		const int DEFAULT_PORT_NUM = 9845;      //!< Default port number (Isis' default + 2)
 
@@ -38,16 +42,6 @@ namespace DwarfServer
 
 			this.tcpClient = null;
 			this.networkStream = null;
-
-            // Initialize command parsing/handling from DwarfCMD
-			base.dwarfCmds = new Dictionary<string, dwarfCmd>();
-			base.dwarfCmds["create"] = this.create;
-			base.dwarfCmds["rmr"] = this.delete;
-			base.dwarfCmds["get"] = this.getNode;
-			base.dwarfCmds["set"] = this.setNode;
-			base.dwarfCmds["stat"] = this.stat;
-			base.dwarfCmds["ls"] = this.getChildren;
-			base.dwarfCmds["sync"] = this.sync; //TODO: Eventually implement (maybe)
 
             // Start a new DwarfTree instance for this server instance
             nodeSys = DwarfTree.DwarfTree.CreateTree();
@@ -127,41 +121,7 @@ namespace DwarfServer
 			throw new NotImplementedException("Sync is not implemented.");
 		}
 		
-		/** Starts the TCP server on localhost with port number.
-		 *
-		 */
-		public void serverStart()
-		{
-			Console.WriteLine("Starting Server on " + this.tcpServer.ToString());
 
-			//TODO: What to do server is still active. No-op?
-			this.tcpServer.Start();
-		}
-
-
-		/** Wait for the client to connect with given timeout.
-		 * 
-		 * Note that this initializes the network stream after connecting.
-		 *
-		 * @param timeout Timeout for waiting for client.
-		 *
-		 */
-		public void waitForClient(int timeout = 0)
-		{
-			if (timeout == 0 || this.tcpServer.Pending())
-			{
-				// Attempt to get the connection immediately if
-				// 1) We don't care about timeouts (will block)
-				// 2) We have a client already trying to connect
-				this.tcpClient = this.tcpServer.AcceptTcpClient();
-			} else { 
-				//TODO: Implement waitForClient() timeout
-				throw new NotImplementedException();
-			}
-			
-			this.networkStream = this.tcpClient.GetStream();
-		}
-		
 
         /****************************************
          *#######################################
@@ -232,18 +192,40 @@ namespace DwarfServer
 			}
 		}
 
+		/** Starts the TCP server on localhost with port number.
+		 *
+		 */
+		public void serverStart()
+		{
+			//Console.WriteLine("Starting Server on " + this.tcpServer.ToString());
+            
+            Group dwarfGroup = new Group("dwarfkeeper");
+
+            //TODO change 0 to static const variable
+            dwarfGroup.Handlers[0] += (dwarfHandler)delegate(DwarfCommand dwarfArgs) {
+                Console.WriteLine(dwarfArgs.opcode + " || " + dwarfArgs.args);
+                dwarfGroup.Reply("0xDEADDWARF");
+                //TODO: redirect
+            };
+
+            dwarfGroup.Join();
+
+			//TODO: What to do server is still active. No-op?
+			//this.tcpServer.Start();
+		}
 
 		static void Main(string[] args)
 		{
+            IsisSystem.Start();
 			DwarfServer dwarfServer = new DwarfServer();
 			dwarfServer.serverStart();
 
 			Console.WriteLine ("Waiting for client connection...");
-			dwarfServer.waitForClient();
+			//dwarfServer.waitForClient();
 			
 			while (true)
 			{
-				dwarfServer.parseCmd(dwarfServer.getMessage());
+  				//dwarfServer.parseCmd(dwarfServer.getMessage());
 				// dwarf_server.wait_for_client();
 			}
 		}
