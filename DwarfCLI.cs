@@ -175,11 +175,10 @@ namespace DwarfCLI
 		static void Main(string[] args) 
 		{
 //            IsisSystem.Start();
-//            Isis.Msg.RegisterType(typeof(DwarfCommand), 111);
 
             DwarfClient dwarfClient = new DwarfClient("dwarfkeeper");
 
-            List<string> stringydwarves = dwarfClient.test("BLUBBERNUTTZ");
+            List<string> stringydwarves = dwarfClient.create("/mynode", "THAT");
 
             foreach (string rep in stringydwarves) {
                 Console.WriteLine(rep);

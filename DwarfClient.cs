@@ -31,7 +31,7 @@ namespace dwarfkeeper
             string args = path + " " + data;
             List<string> retlist = new List<string>();
 
-            this.dclient.P2PQuery(IsisDwarfCode.OPCODE,
+            this.dclient.P2PQuery((int)IsisDwarfCode.OPCODE,
                     new DwarfCommand((int)DwarfCode.CREATE, args),
                     new EOLMarker(),
                     retlist);

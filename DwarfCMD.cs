@@ -9,14 +9,14 @@ namespace DwarfCMD
 
     [AutoMarshalled]
     public class DwarfCommand {
-        public int opcode;
+        public int opCode;
         public string args;
 
         public DwarfCommand() {}
 
         public DwarfCommand(int opcode, string args) {
            this.args = args;
-           this.opcode = opcode;
+           this.opCode = opcode;
         }
 
     }

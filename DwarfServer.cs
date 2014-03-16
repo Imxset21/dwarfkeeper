@@ -13,205 +13,32 @@ using Isis;
 namespace DwarfServer
 {
     
-    delegate void dwarfIsisHandler(DwarfCommand dwarfArgs);
-    delegate string dwarfOpHandler(string args);
+    delegate void dwarfIsisHandler(DwarfCommand args);
+    delegate void dwarfOpHandler(string args);
 
     //TODO: Add logging of some sort to servers - Hook into Isis logging?
 	public class DwarfServer
 	{
 		const int DEFAULT_PORT_NUM = 9845;      //!< Default port number (Isis' default + 2)
 
-		private IPHostEntry iphost;             //!< IP entry point for this host
-		private TcpListener tcpServer;          //!< TCP server listener
-		private TcpClient tcpClient;            //!< TCP client connection
-		private NetworkStream networkStream;    //!< Network stream for message passing
-        private DwarfTree.DwarfTree nodeSys;              //!< Underlying node file system
-        private Dictionary<DwarfCode, dwarfOpHandler> dwarfOps;
-        private Group dwarfGroup;
+        private static DwarfTree.DwarfTree nodeSys;              //!< Underlying node file system
+        private static Dictionary<DwarfCode, dwarfOpHandler> dwarfOps;
+        private static Group dwarfGroup;
 
-		/** Initializes a server with a given/default port number.
-		 *
-		 * @param portnum Default port number or user override.
-		 *
-		 */
-        public DwarfServer(int portnum = DEFAULT_PORT_NUM)
-		{
-			// Set this to our actual IP (according to DNS)
-			this.iphost = Dns.GetHostEntry(Dns.GetHostName());
-
-			// Set the server to listen for connections on the Isis default port num + 2
-			this.tcpServer = new TcpListener(new IPEndPoint(iphost.AddressList[0], portnum));
-
-			this.tcpClient = null;
-			this.networkStream = null;
-
-            // Start a new DwarfTree instance for this server instance
-            nodeSys = DwarfTree.DwarfTree.CreateTree();
-		}
-
-        /** Create the node at path - CLI command is "create".
-         */
-		private void create(string args)
-		{
-            string[] argslst = args.Split();
-            if(argslst.Length < 2) {
-                return;
-            }
-
-            //TODO support ACL inputs
-            //TODO support error messages on bad node adds
-            bool success = nodeSys.addNode(argslst[0], argslst[1]);
-			throw new NotImplementedException("create is not implemented.");
-		}
-		
-		private void delete(string args)
-		{
-            string[] argslst = args.Split();
-            if(argslst.Length < 1) {
-                return;
-            }
-            //TODO: Enable Logging & user feedback
-            bool success = nodeSys.removeNode(argslst[0]);
-			throw new NotImplementedException("rmr is not implemented.");
-		}
-
-		private void getNode(string args)
-		{
-            //TODO Support watches
-            string[] argslst = args.Split();
-            if(argslst.Length < 1) {
-                return;
-            }
-            Dictionary<string, string> stat = nodeSys.getNode(argslst[0]);
-			throw new NotImplementedException("get is not implemented.");
-		}
-
-		private void setNode(string args)
-		{
-            string[] argslst = args.Split();
-            if(argslst.Length < 2) {
-                return;
-            }
-            bool success = nodeSys.setData(argslst[0], argslst[1]);
-			throw new NotImplementedException("set is not implemented.");
-		}
-
-		private void stat(string args)
-		{
-            //TODO Support watches
-            string[] argslst = args.Split();
-            if(argslst.Length < 1) {
-                return;
-            }
-            Dictionary<string, string> stats = nodeSys.getNodeInfo(argslst[0]);
-			throw new NotImplementedException("stat is not implemented.");			
-		}
-
-		private void getChildren(string args)
-		{
-            //TODO Support watches
-            string[] argslst = args.Split();
-            if(argslst.Length < 1) {
-                return;
-            }
-            Dictionary<string, string> stats = nodeSys.getChildList(argslst[0]);
-			throw new NotImplementedException("ls is not implemented.");			
-		}
-
-        private string test(string args) {
-            Console.WriteLine("TEST || " + args);
-            return "0xDEADWARF-TEST";
-        }
-		
-		private void sync(string args)
-		{
-			throw new NotImplementedException("Sync is not implemented.");
-		}
-		
-
-
-        /****************************************
-         *#######################################
-         * Connection/Messaging code
-         *#######################################
-         * **************************************/
-
-
-		/** Gets message sent from client.
-		 *
-		 * @return String message sent by client.
-		 */
-		public string getMessage()
-		{
-			byte[] inbuffer = new byte[256];
-
-			byte[] header = new byte[4];
-            this.networkStream.Read (header, 0, header.Length);
-			Int32 msglen = System.BitConverter.ToInt32(header, 0);
-
-			inbuffer = new byte[msglen];
-			this.networkStream.Read(inbuffer, 0, inbuffer.Length);
-			string msg = System.Text.Encoding.Unicode.GetString(inbuffer);
-			return msg;
-		}
-
-        
-		/** Gets connection status.
-		 * 
-		 * @return Connection status as a bool.
-		 */
-		public bool getConnectionStatus()
-		{
-			if (this.tcpClient != null)
-			{
-				return this.tcpClient.Connected;
-			} else {
-				return false;
-			}
-		}
-
-
-		/** Sends a string message to the client.
-		 * 
-		 * Message contents are sent through unmolested.
-		 * If we fail to write to the socket we assume that the
-		 * client has disconnected and close the connection.
-		 * 
-		 * @param	msg	Message to send to client
-		 */
-		public void sendMessage(string msg)
-		{
-			if (!this.getConnectionStatus())
-			{
-				Console.WriteLine("Cannot send message: disconnected");
-				return;
-			}
-
-			byte[] msgbuffer = Encoding.Unicode.GetBytes(msg); // Use UTF-8
-
-			try
-			{
-				this.networkStream.Write(BitConverter.GetBytes((Int32)msgbuffer.Length), 0, sizeof(Int32));
-				this.networkStream.Write(msgbuffer, 0, msgbuffer.Length);
-			} catch (System.IO.IOException socketExcpt) {
-                //TODO: Try to force client connectin closed?
-				Console.WriteLine("Failed to send message to server. Closing connection... ");
-			}
-		}
-
-
-
-        public void initDwarfHandlers() {
+        private static void initDwarfHandlers() {
             dwarfOps = new Dictionary<DwarfCode, dwarfOpHandler>();
             dwarfOps.Add(DwarfCode.TEST, (dwarfOpHandler)test);
+            dwarfOps.Add(DwarfCode.CREATE, (dwarfOpHandler)create);
+            dwarfOps.Add(DwarfCode.DELETE, (dwarfOpHandler)delete);
+            dwarfOps.Add(DwarfCode.GET_DATA, (dwarfOpHandler)getNode);
         }
 
-       public void defineOpHandlers() {
+        private static void defineOpHandlers() {
             dwarfGroup.Handlers[(int)IsisDwarfCode.OPCODE] += 
-                (dwarfIsisHandler)delegate(DwarfCommand dwarfArgs) {
+                (dwarfIsisHandler)delegate(DwarfCommand cmd) {
                     ThreadStart ts =
                         new ThreadStart(() => 
-                            dwarfGroup.Reply(dwarfOps[(DwarfCode)dwarfArgs.opcode](dwarfArgs.args)));
+                            dwarfOps[(DwarfCode)cmd.opCode](cmd.args));
                     Thread t = new Thread(ts);
                     dwarfGroup.SetReplyThread(t);
                     t.Start();
@@ -222,10 +49,10 @@ namespace DwarfServer
 		/** Starts the TCP server on localhost with port number.
 		 *
 		 */
-		public void serverStart()
+		public static void serverStart()
 		{
-			//Console.WriteLine("Starting Server on " + this.tcpServer.ToString());
-            
+            nodeSys = DwarfTree.DwarfTree.CreateTree();
+
             dwarfGroup = new Group("dwarfkeeper");
 
             defineOpHandlers();
@@ -239,11 +66,142 @@ namespace DwarfServer
 			//this.tcpServer.Start();
 		}
 
+
+
+
+        /**************************************************
+         *
+         * DwarfTree Manipulation Functions
+         *
+         **************************************************/
+
+        
+        /** Create the node at path - CLI command is "create".
+         */
+		private static void create(string args)
+		{
+            string[] argslst = args.Split();
+            if(argslst.Length < 2) {
+                return;
+            }
+
+            //TODO support ACL inputs
+            //TODO support error messages on bad node adds
+            bool success = nodeSys.addNode(argslst[0], argslst[1]);
+            
+            //TODO: send update to rest of group
+            if(success) {
+                dwarfGroup.Reply(argslst[0]);
+                nodeSys.printTree();
+            } else {
+                string err = 
+                    string.Format("Error: Failed to create node {0}, with data {1}",
+                        argslst[0], argslst[1]);
+                dwarfGroup.Reply(err);
+            }
+		}
+		
+		private static void delete(string args)
+		{
+            string[] argslst = args.Split();
+            if(argslst.Length < 1) {
+                return;
+            }
+            //TODO: Enable Logging & user feedback
+            bool success = nodeSys.removeNode(argslst[0]);
+
+            if(success) {
+                dwarfGroup.Reply(argslst[0]);
+            } else {
+                string err = 
+                    string.Format("Error: Failed to delete node {0}", argslst[0]);
+                dwarfGroup.Reply(err);
+            }
+		}
+
+		private static void getNode(string args)
+		{
+            //TODO Support watches
+            string[] argslst = args.Split();
+            if(argslst.Length < 1) {
+                return;
+            }
+            Dictionary<string, string> stat = nodeSys.getNode(argslst[0]);
+
+            if(null != stat) {
+                dwarfGroup.Reply(stat);
+            } else {
+                stat = new Dictionary<string, string> () {
+                    {"Error", "Get Failed :P"}
+                };
+                dwarfGroup.Reply(stat);
+            }
+		}
+
+		private static void setNode(string args)
+		{
+            string[] argslst = args.Split();
+            if(argslst.Length < 2) {
+                return;
+            }
+            bool success = nodeSys.setData(argslst[0], argslst[1]);
+			throw new NotImplementedException("set is not implemented.");
+		}
+
+		private static void stat(string args)
+		{
+            //TODO Support watches
+            string[] argslst = args.Split();
+            if(argslst.Length < 1) {
+                return;
+            }
+            Dictionary<string, string> stats = nodeSys.getNodeInfo(argslst[0]);
+			throw new NotImplementedException("stat is not implemented.");			
+		}
+
+		private static void getChildren(string args)
+		{
+            //TODO Support watches
+            string[] argslst = args.Split();
+            if(argslst.Length < 1) {
+                return;
+            }
+            Dictionary<string, string> stats = nodeSys.getChildList(argslst[0]);
+			throw new NotImplementedException("ls is not implemented.");			
+		}
+
+        private static void test(string args) {
+            Console.WriteLine("TEST || " + args);
+            dwarfGroup.Reply("0xDEADWARF-TEST");
+        }
+		
+		private static void sync(string args)
+		{
+			throw new NotImplementedException("Sync is not implemented.");
+		}
+		
+
+        private static void printTree() {
+            while (true) {
+                nodeSys.printTree();
+                Thread.Sleep(5000);
+            }
+        }
+
+
+
 		static void Main(string[] args)
 		{
-            IsisSystem.Start(true);
-			DwarfServer dwarfServer = new DwarfServer();
-			dwarfServer.serverStart();
+            //TODO add better command line argument for fast start
+            if (args.Length > 0 && args[0].Equals("fast")) {
+                IsisSystem.Start(true);
+            } else {
+                IsisSystem.Start();
+            }
+			DwarfServer.serverStart();
+
+            Thread t = new Thread(printTree);
+            t.Start();
 
 			Console.WriteLine ("Waiting for client connection...");
 			//dwarfServer.waitForClient();
