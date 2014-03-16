@@ -13,7 +13,8 @@ using Isis;
 namespace DwarfServer
 {
     
-    delegate void dwarfHandler(DwarfCommand dwarfArgs);
+    delegate void dwarfIsisHandler(DwarfCommand dwarfArgs);
+    delegate string dwarfOpHandler(string args);
 
     //TODO: Add logging of some sort to servers - Hook into Isis logging?
 	public class DwarfServer
@@ -25,6 +26,8 @@ namespace DwarfServer
 		private TcpClient tcpClient;            //!< TCP client connection
 		private NetworkStream networkStream;    //!< Network stream for message passing
         private DwarfTree.DwarfTree nodeSys;              //!< Underlying node file system
+        private Dictionary<DwarfCode, dwarfOpHandler> dwarfOps;
+        private Group dwarfGroup;
 
 		/** Initializes a server with a given/default port number.
 		 *
@@ -114,6 +117,11 @@ namespace DwarfServer
             Dictionary<string, string> stats = nodeSys.getChildList(argslst[0]);
 			throw new NotImplementedException("ls is not implemented.");			
 		}
+
+        private string test(string args) {
+            Console.WriteLine("TEST || " + args);
+            return "0xDEADWARF-TEST";
+        }
 		
 		private void sync(string args)
 		{
@@ -191,6 +199,26 @@ namespace DwarfServer
 			}
 		}
 
+
+
+        public void initDwarfHandlers() {
+            dwarfOps = new Dictionary<DwarfCode, dwarfOpHandler>();
+            dwarfOps.Add(DwarfCode.TEST, (dwarfOpHandler)test);
+        }
+
+       public void defineOpHandlers() {
+            dwarfGroup.Handlers[(int)IsisDwarfCode.OPCODE] += 
+                (dwarfIsisHandler)delegate(DwarfCommand dwarfArgs) {
+                    ThreadStart ts =
+                        new ThreadStart(() => 
+                            dwarfGroup.Reply(dwarfOps[(DwarfCode)dwarfArgs.opcode](dwarfArgs.args)));
+                    Thread t = new Thread(ts);
+                    dwarfGroup.SetReplyThread(t);
+                    t.Start();
+                };
+            dwarfGroup.AllowClientRequests((int)IsisDwarfCode.OPCODE);
+        }
+
 		/** Starts the TCP server on localhost with port number.
 		 *
 		 */
@@ -198,16 +226,11 @@ namespace DwarfServer
 		{
 			//Console.WriteLine("Starting Server on " + this.tcpServer.ToString());
             
-            Group dwarfGroup = new Group("dwarfkeeper");
+            dwarfGroup = new Group("dwarfkeeper");
 
-            //TODO change 0 to static const variable
-            dwarfGroup.Handlers[0] += (dwarfHandler)delegate(DwarfCommand dwarfArgs) {
-                Console.WriteLine(dwarfArgs.opcode + " || " + dwarfArgs.args);
-                dwarfGroup.Reply("0xDEADDWARF");
-                //TODO: redirect
-            };
+            defineOpHandlers();
+            initDwarfHandlers();
 
-            dwarfGroup.AllowClientRequests(0);
             Isis.Msg.RegisterType(typeof(DwarfCommand), 111);
 
             dwarfGroup.Join();
