@@ -54,7 +54,6 @@ namespace DwarfData
          *          Null if path is non-empty and loading from file fails
 		 */
 		public static DwarfTree CreateTree(string filepath = "") {
-			DwarfTree tree;
 			if(!filepath.Equals("")) {
                 return loadTree(filepath);
 			}
@@ -91,33 +90,6 @@ namespace DwarfData
             }
             
             return new DwarfStat(tree);
-        }
-
-        /** Return select information about the node at path, including the contained data.
-         *
-         * @param path The path to the wanted node.
-         * @return A Dictionary from field/info name to value
-         */
-        public DwarfStat getNode(string path) {
-            DwarfTree tree = this.findNode(path);
-            if(null == tree) {
-                return null;
-            }
-
-            DwarfStat nodeInfo = tree.getNodeInfo();
-            nodeInfo.setData(tree);
-            return nodeInfo;
-        }
-
-        public DwarfStat getNodeChildren(string path) {
-            DwarfTree tree = this.findNode(path);
-            if(null == tree) {
-                return null;
-            }
-
-            DwarfStat nodeInfo = tree.getNodeInfo();
-            nodeInfo.setChildLst(tree);
-            return nodeInfo;
         }
 
         /** Get a list of the children of the node given by path.
@@ -347,9 +319,13 @@ namespace DwarfData
         public string data;
         public string err;
 
+        private DwarfTree tree;
+
         public DwarfStat() {}
 
         public DwarfStat(DwarfTree node) {
+            this.tree = node;
+
             this.name = node.name;
             this.ctime = node.ctime;
             this.mtime = node.mtime;
@@ -360,6 +336,8 @@ namespace DwarfData
         }
 
         public DwarfStat(String errMsg) {
+            this.tree = null;
+
             this.err = errMsg;
             this.name = "";
             this.ctime = "";
@@ -370,12 +348,18 @@ namespace DwarfData
         }
 
 
-        public void setData(DwarfTree node) {
-           this.data = node.data;
+        public void includeData() {
+            if(null == this.tree) {
+               return;
+            }
+            this.data = tree.data;
         }
 
-        public void setChildLst(DwarfTree node) {
-            this.childlst = string.Join(",", node.children.Keys.ToArray());
+        public void includeChildLst() {
+            if(null == this.tree) {
+               return;
+            }
+            this.childlst = string.Join(",", tree.children.Keys.ToArray());
         }
 
         public void printStat() {

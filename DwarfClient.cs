@@ -10,7 +10,7 @@ using DwarfCMD;
 using DwarfData;
 using Isis;
 
-namespace dwarfkeeper
+namespace DwarfKeeper
 {
 	public class DwarfClient
 	{
@@ -51,13 +51,54 @@ namespace dwarfkeeper
             return retlst;
         }
 
-        public List<DwarfStat> getChildren2(String args) {
+        public List<string> getChildren(string path) {
+            List<string> retlst = new List<string>();
+
+            this.dclient.P2PQuery((int)IsisDwarfCode.OPCODE,
+                    new DwarfCommand((int)DwarfCode.GET_CHILDREN, path),
+                    new EOLMarker(),
+                    retlst);
+
+            return retlst;
+        }
+
+        public List<DwarfStat> getChildren2(string path) {
             List<DwarfStat> retlst = new List<DwarfStat>();
 
-            args = args + " 1";
-            
             this.dclient.P2PQuery((int)IsisDwarfCode.OPCODE,
-                    new DwarfCommand((int)DwarfCode.GET_CHILDREN2, args),
+                    new DwarfCommand((int)DwarfCode.GET_CHILDREN2, path),
+                    new EOLMarker(),
+                    retlst);
+
+            return retlst;
+        }
+
+        public List<string> delete(string path) {
+            List<string> retlst = new List<string>();
+            this.dclient.P2PQuery((int)IsisDwarfCode.OPCODE,
+                    new DwarfCommand((int)DwarfCode.DELETE, path),
+                    new EOLMarker(),
+                    retlst);
+
+            return retlst;
+        }
+
+        public List<string> setNode(string path, string data) {
+            string args = path + " " + data;
+            List<string> retlst = new List<string>();
+
+            this.dclient.P2PQuery((int)IsisDwarfCode.OPCODE,
+                    new DwarfCommand((int)DwarfCode.SET_NODE, args),
+                    new EOLMarker(),
+                    retlst);
+            return retlst;
+        }
+
+        public List<DwarfStat> getNodeAll(string path) {
+            List<DwarfStat> retlst = new List<DwarfStat>();
+
+            this.dclient.P2PQuery((int)IsisDwarfCode.OPCODE,
+                    new DwarfCommand((int)DwarfCode.GET_ALL, path),
                     new EOLMarker(),
                     retlst);
 

@@ -33,6 +33,8 @@ namespace DwarfServer
             dwarfOps.Add(DwarfCode.GET_NODE, (dwarfOpHandler)getNode);
             dwarfOps.Add(DwarfCode.GET_CHILDREN, (dwarfOpHandler)getChildren);
             dwarfOps.Add(DwarfCode.GET_CHILDREN2, (dwarfOpHandler)getChildren2);
+            dwarfOps.Add(DwarfCode.SET_NODE, (dwarfOpHandler)setNode);
+            dwarfOps.Add(DwarfCode.GET_ALL, (dwarfOpHandler)getNodeAll);
         }
 
         private static void defineOpHandlers() {
@@ -129,9 +131,10 @@ namespace DwarfServer
             if(argslst.Length < 1) {
                 return;
             }
-            DwarfStat stat = nodeSys.getNode(argslst[0]);
+            DwarfStat stat = nodeSys.getNodeInfo(argslst[0]);
 
             if(null != stat) {
+                stat.includeData();
                 dwarfGroup.Reply(stat);
             } else {
                 stat = new DwarfStat("Get Failed");
@@ -146,7 +149,15 @@ namespace DwarfServer
                 return;
             }
             bool success = nodeSys.setData(argslst[0], argslst[1]);
-			throw new NotImplementedException("set is not implemented.");
+
+            if(success) {
+                dwarfGroup.Reply(argslst[1]);
+            } else {
+                String err = string.Format(
+                        "Failed to set data to {0} at node {1}",
+                        argslst[0], argslst[1]);
+                dwarfGroup.Reply(err);
+            }
 		}
 
 		private static void stat(string args)
@@ -167,14 +178,14 @@ namespace DwarfServer
                 return;
             }
             
-            DwarfStat stat = nodeSys.getNodeChildren(argslst[0]);
+            string[] childs = nodeSys.getChildList(argslst[0]);
 
-            if(null == stat) {
+            if(null == childs) {
                 dwarfGroup.Reply("Error: Get Children Failed");
                 return;
             }
            
-            dwarfGroup.Reply(stat.childlst);
+            dwarfGroup.Reply(string.Join(",", childs));
         }
 
 		private static void getChildren2(string args)
@@ -184,15 +195,34 @@ namespace DwarfServer
                 return;
             }
             
-            DwarfStat stat = nodeSys.getNodeChildren(argslst[0]);
+            DwarfStat stat = nodeSys.getNodeInfo(argslst[0]);
 
             if(null == stat) {
                 dwarfGroup.Reply("Error: Get Children Failed");
                 return;
             }
+            stat.includeChildLst();
            
             dwarfGroup.Reply(stat);
 		}
+
+        private static void getNodeAll(string args) {
+             string[] argslst = args.Split();
+            if(argslst.Length < 1) {
+                return;
+            }
+            
+            DwarfStat stat = nodeSys.getNodeInfo(argslst[0]);
+
+            if(null == stat) {
+                dwarfGroup.Reply("Error: Get Children Failed");
+                return;
+            }
+            stat.includeChildLst();
+            stat.includeData();
+           
+            dwarfGroup.Reply(stat);
+       }
 
         private static void test(string args) {
             Console.WriteLine("TEST || " + args);

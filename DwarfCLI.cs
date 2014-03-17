@@ -5,7 +5,7 @@ using System.IO;
 using System.Text;
 using System.Collections.Generic;
 
-using dwarfkeeper; // Import Client
+using DwarfKeeper; // Import Client
 using DwarfData;
 using DwarfCMD;
 using Isis;

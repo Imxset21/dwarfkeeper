@@ -11,7 +11,7 @@ DEBUG ?= -debug
 DWARFCLIENT_LIB = DwarfClient.cs 
 DWARFKEEPER_LIB = DwarfCMD.cs DwarfData.cs
 DWARFSERVER_LIB = 
-EXECUTABLES = DwarfCLI.exe DwarfServer.exe
+EXECUTABLES = DwarfCLI.exe DwarfServer.exe DwarfTest.exe
 ISIS = Isis.cs
 
 .PHONY: all clean build rebuild
@@ -24,6 +24,9 @@ DwarfCLI.exe: %.exe : %.cs
 # TODO: Add compiler flag to DwarfTree to remove need for -main flag here
 DwarfServer.exe: %.exe : %.cs
 	$(MONO_MCS) $(DEBUG) $< $(ISIS) $(DWARFSERVER_LIB) $(DWARFKEEPER_LIB) -out:$@ -main:DwarfServer.DwarfServer
+
+DwarfTest.exe: %.exe : %.cs
+	$(MONO_MCS) $(DEBUG) $< $(ISIS) $(DWARFCLIENT_LIB) $(DWARFKEEPER_LIB) -out:$@ -main:DwarfTest.DwarfTest
 
 build: $(EXECUTABLES)
 
