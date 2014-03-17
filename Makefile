@@ -9,18 +9,17 @@ MONO_MCS = $(MONO_BIN_DIR)/mcs
 DEBUG ?= -debug
 
 DWARFCLIENT_LIB = DwarfClient.cs 
-DWARFKEEPER_LIB = DwarfCMD.cs
-DWARFSERVER_LIB = DwarfTree.cs
-
+DWARFKEEPER_LIB = DwarfCMD.cs DwarfData.cs
+DWARFSERVER_LIB = 
 EXECUTABLES = DwarfCLI.exe DwarfServer.exe
 ISIS = Isis.cs
 
-.PHONY: all clean build
+.PHONY: all clean build rebuild
 
 all: build
 
 DwarfCLI.exe: %.exe : %.cs
-	$(MONO_MCS) $(DEBUG) $< $(ISIS) $(DWARFCLIENT_LIB) $(DWARFKEEPER_LIB) -out:$@
+	$(MONO_MCS) $(DEBUG) $< $(ISIS) $(DWARFCLIENT_LIB) $(DWARFKEEPER_LIB) -out:$@ -main:DwarfCLI.DwarfCLI
 
 # TODO: Add compiler flag to DwarfTree to remove need for -main flag here
 DwarfServer.exe: %.exe : %.cs
@@ -30,3 +29,5 @@ build: $(EXECUTABLES)
 
 clean:
 	@rm -f $(EXECUTABLES) $(addsuffix .mdb, $(EXECUTABLES))
+
+rebuild: clean build

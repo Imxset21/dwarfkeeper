@@ -28,7 +28,7 @@ namespace DwarfCMD
         GET_CHILDREN2,
         DELETE,
         EXISTS,
-        GET_DATA,
+        GET_NODE,
         TEST
     }
 

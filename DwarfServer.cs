@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Threading;
 
 using DwarfCMD;
-using DwarfTree;
+using DwarfData;
 using Isis;
 
 namespace DwarfServer
@@ -21,7 +21,7 @@ namespace DwarfServer
 	{
 		const int DEFAULT_PORT_NUM = 9845;      //!< Default port number (Isis' default + 2)
 
-        private static DwarfTree.DwarfTree nodeSys;              //!< Underlying node file system
+        private static DwarfTree nodeSys;              //!< Underlying node file system
         private static Dictionary<DwarfCode, dwarfOpHandler> dwarfOps;
         private static Group dwarfGroup;
 
@@ -30,7 +30,9 @@ namespace DwarfServer
             dwarfOps.Add(DwarfCode.TEST, (dwarfOpHandler)test);
             dwarfOps.Add(DwarfCode.CREATE, (dwarfOpHandler)create);
             dwarfOps.Add(DwarfCode.DELETE, (dwarfOpHandler)delete);
-            dwarfOps.Add(DwarfCode.GET_DATA, (dwarfOpHandler)getNode);
+            dwarfOps.Add(DwarfCode.GET_NODE, (dwarfOpHandler)getNode);
+            dwarfOps.Add(DwarfCode.GET_CHILDREN, (dwarfOpHandler)getChildren);
+            dwarfOps.Add(DwarfCode.GET_CHILDREN2, (dwarfOpHandler)getChildren2);
         }
 
         private static void defineOpHandlers() {
@@ -51,7 +53,7 @@ namespace DwarfServer
 		 */
 		public static void serverStart()
 		{
-            nodeSys = DwarfTree.DwarfTree.CreateTree();
+            nodeSys = DwarfTree.CreateTree();
 
             dwarfGroup = new Group("dwarfkeeper");
 
@@ -59,6 +61,7 @@ namespace DwarfServer
             initDwarfHandlers();
 
             Isis.Msg.RegisterType(typeof(DwarfCommand), 111);
+            Isis.Msg.RegisterType(typeof(DwarfStat), 113);
 
             dwarfGroup.Join();
 
@@ -126,14 +129,12 @@ namespace DwarfServer
             if(argslst.Length < 1) {
                 return;
             }
-            Dictionary<string, string> stat = nodeSys.getNode(argslst[0]);
+            DwarfStat stat = nodeSys.getNode(argslst[0]);
 
             if(null != stat) {
                 dwarfGroup.Reply(stat);
             } else {
-                stat = new Dictionary<string, string> () {
-                    {"Error", "Get Failed :P"}
-                };
+                stat = new DwarfStat("Get Failed");
                 dwarfGroup.Reply(stat);
             }
 		}
@@ -155,19 +156,42 @@ namespace DwarfServer
             if(argslst.Length < 1) {
                 return;
             }
-            Dictionary<string, string> stats = nodeSys.getNodeInfo(argslst[0]);
+            DwarfStat stats = nodeSys.getNodeInfo(argslst[0]);
 			throw new NotImplementedException("stat is not implemented.");			
 		}
 
-		private static void getChildren(string args)
-		{
-            //TODO Support watches
+
+        private static void getChildren(string args) {
             string[] argslst = args.Split();
             if(argslst.Length < 1) {
                 return;
             }
-            Dictionary<string, string> stats = nodeSys.getChildList(argslst[0]);
-			throw new NotImplementedException("ls is not implemented.");			
+            
+            DwarfStat stat = nodeSys.getNodeChildren(argslst[0]);
+
+            if(null == stat) {
+                dwarfGroup.Reply("Error: Get Children Failed");
+                return;
+            }
+           
+            dwarfGroup.Reply(stat.childlst);
+        }
+
+		private static void getChildren2(string args)
+		{
+            string[] argslst = args.Split();
+            if(argslst.Length < 1) {
+                return;
+            }
+            
+            DwarfStat stat = nodeSys.getNodeChildren(argslst[0]);
+
+            if(null == stat) {
+                dwarfGroup.Reply("Error: Get Children Failed");
+                return;
+            }
+           
+            dwarfGroup.Reply(stat);
 		}
 
         private static void test(string args) {
@@ -200,8 +224,8 @@ namespace DwarfServer
             }
 			DwarfServer.serverStart();
 
-            Thread t = new Thread(printTree);
-            t.Start();
+//            Thread t = new Thread(printTree);
+//            t.Start();
 
 			Console.WriteLine ("Waiting for client connection...");
 			//dwarfServer.waitForClient();

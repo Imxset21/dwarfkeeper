@@ -44,6 +44,8 @@
     <Compile Include="DwarfCLI.cs" />
     <Compile Include="DwarfTree.cs" />
     <Compile Include="DwarfCMD.cs" />
+    <Compile Include="DwarfUtils.cs" />
+    <Compile Include="DwarfData.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

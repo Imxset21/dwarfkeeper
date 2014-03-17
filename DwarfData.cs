@@ -6,7 +6,9 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 
-namespace DwarfTree
+using Isis;
+
+namespace DwarfData
 {
 	[Serializable]
 	public class DwarfTree
@@ -27,7 +29,7 @@ namespace DwarfTree
         }
         public string ctime {get; private set;} //!< The creation time for this node
         public string mtime {get; private set;} //!< The modification time for this node
-		Dictionary<string, DwarfTree> children; //!< The immediate children of this node
+		public Dictionary<string, DwarfTree> children; //!< The immediate children of this node
 
         private readonly char[] pathdelim = new char[] {'/'};
 
@@ -79,7 +81,7 @@ namespace DwarfTree
          * @param node The node (DwarfTree) that you want information about
          * @return A <string, string> dictionary from field/info name to value
          */
-        public Dictionary<string, string> getNodeInfo(string path = null) {
+        public DwarfStat getNodeInfo(string path = null) {
             DwarfTree tree = this;
             if(null != path) {
                 tree = this.findNode(path);
@@ -88,12 +90,7 @@ namespace DwarfTree
                 }
             }
             
-            return new Dictionary<string, string>() {
-                {"name", tree.name},
-                {"ctime", tree.ctime},
-                {"mtime", tree.mtime},
-                {"numChildren", tree.children.Count.ToString()}
-            };
+            return new DwarfStat(tree);
         }
 
         /** Return select information about the node at path, including the contained data.
@@ -101,34 +98,45 @@ namespace DwarfTree
          * @param path The path to the wanted node.
          * @return A Dictionary from field/info name to value
          */
-        public Dictionary<string, string> getNode(string path) {
+        public DwarfStat getNode(string path) {
             DwarfTree tree = this.findNode(path);
             if(null == tree) {
                 return null;
             }
 
-            Dictionary<string, string> nodeInfo = tree.getNodeInfo();
-            nodeInfo.Add("data", tree.data);
+            DwarfStat nodeInfo = tree.getNodeInfo();
+            nodeInfo.setData(tree);
+            return nodeInfo;
+        }
+
+        public DwarfStat getNodeChildren(string path) {
+            DwarfTree tree = this.findNode(path);
+            if(null == tree) {
+                return null;
+            }
+
+            DwarfStat nodeInfo = tree.getNodeInfo();
+            nodeInfo.setChildLst(tree);
             return nodeInfo;
         }
 
         /** Get a list of the children of the node given by path.
          *
          * @param path The path to the wanted node
-         * @return a sorted list of the child names
+         * @return A sorted list of the child names
          */
-        public Dictionary<string, string> getChildList(string path) {
+        public string[] getChildList(string path) {
             DwarfTree tree = this.findNode(path);
             if(null == tree) {
                 return null;
             }
 
-            Dictionary<string, string> nodeInfo = tree.getNodeInfo();
             string[] childnames = tree.children.Keys.ToArray();
             System.Array.Sort(childnames);
-            nodeInfo.Add("children", string.Join(",", childnames));
-            return nodeInfo;
+            return childnames;
         }
+
+
 
 		/** Add a node at location path with data newdata.
 		 * 
@@ -323,11 +331,62 @@ namespace DwarfTree
             tree.printTree();
 
             Console.WriteLine("\n***** Checking stat() on /mynode  ****\n");
-            Dictionary<string, string> mynodestat = tree.getNodeInfo("/mynode");
-            foreach(var pair in mynodestat) {
-                Console.WriteLine("\t{0} : {1}", pair.Key, pair.Value);
-            }
+            DwarfStat mynodestat = tree.getNodeInfo("/mynode");
+            mynodestat.printStat();
 		}
 	}
+
+
+    [AutoMarshalled]
+    public class DwarfStat {
+        public string name;
+        public string ctime;
+        public string mtime;
+        public int numChildren;
+        public string childlst;
+        public string data;
+        public string err;
+
+        public DwarfStat() {}
+
+        public DwarfStat(DwarfTree node) {
+            this.name = node.name;
+            this.ctime = node.ctime;
+            this.mtime = node.mtime;
+            this.numChildren = node.children.Count;
+            this.childlst = "";
+            this.data = "";
+            this.err = "";
+        }
+
+        public DwarfStat(String errMsg) {
+            this.err = errMsg;
+            this.name = "";
+            this.ctime = "";
+            this.mtime = "";
+            this.numChildren = -1;
+            this.childlst = "";
+            this.data = "";
+        }
+
+
+        public void setData(DwarfTree node) {
+           this.data = node.data;
+        }
+
+        public void setChildLst(DwarfTree node) {
+            this.childlst = string.Join(",", node.children.Keys.ToArray());
+        }
+
+        public void printStat() {
+            Console.WriteLine(string.Format("Name: {0}", this.name));
+            Console.WriteLine(string.Format("ctime: {0}", this.ctime));
+            Console.WriteLine(string.Format("mtime: {0}", this.mtime));
+            Console.WriteLine(string.Format("numChildren: {0}", this.numChildren));
+            Console.WriteLine(string.Format("childlst: {0}", this.childlst));
+            Console.WriteLine(string.Format("data: {0}", this.data));
+            Console.WriteLine(string.Format("Err: {0}", this.err));
+        }
+    }
 }
 

@@ -6,6 +6,7 @@ using System.Text;
 using System.Collections.Generic;
 
 using dwarfkeeper; // Import Client
+using DwarfData;
 using DwarfCMD;
 using Isis;
 
@@ -182,6 +183,11 @@ namespace DwarfCLI
 
             foreach (string rep in stringydwarves) {
                 Console.WriteLine(rep);
+            }
+
+            List<DwarfStat> dictDwarves = dwarfClient.getChildren2("/mynode");
+            foreach (DwarfStat rep in dictDwarves) {
+                rep.printStat();
             }
 
             IsisSystem.Shutdown();
