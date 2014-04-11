@@ -22,8 +22,7 @@ namespace DwarfCMD
     }
     
     public enum DwarfCode {
-        MESSAGE = 0,
-        CREATE,
+        CREATE = 0,
         GET_CHILDREN,
         GET_CHILDREN2,
         DELETE,
@@ -35,6 +34,7 @@ namespace DwarfCMD
     }
 
     public enum IsisDwarfCode {
-        OPCODE = 0
+        OPCODE = 0,
+        UPDATE,
     }
 }
