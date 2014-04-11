@@ -27,6 +27,10 @@ namespace DwarfKeeper
             Isis.Msg.RegisterType(typeof(DwarfStat), 113);
             dclient = new Client(groupname);
 		}
+
+        public void disconnect() {
+            IsisSystem.Shutdown();
+        }
         
 
         public List<string> create(string path, string data) {
