@@ -30,6 +30,7 @@ namespace DwarfData
         public string ctime {get; private set;} //!< The creation time for this node
         public string mtime {get; private set;} //!< The modification time for this node
 		public Dictionary<string, DwarfTree> children; //!< The immediate children of this node
+        public long dxid {get; private set;} //!< The transaction ID that set this node
 
         private readonly char[] pathdelim = new char[] {'/'};
 
@@ -90,6 +91,16 @@ namespace DwarfData
             }
             
             return new DwarfStat(tree);
+        }
+
+
+        /** Check whether a node exists at a given path.
+         *
+         * @param path The path to the node you want to check
+         * @return True if the node exists, false otherwise
+         */
+        public bool exists(string path = null) {
+            return (null != findNode(path));
         }
 
         /** Get a list of the children of the node given by path.
@@ -249,62 +260,6 @@ namespace DwarfData
             }
 			s.Close();
 			return tree;
-		}
-
-        /** Tests for the DwarfTree class. 
-         * TODO: Add compiler flag so we don't need to set -main in Makefile
-         */
-		static void Main(string[] args) {
-			DwarfTree tree = DwarfTree.CreateTree();
-			tree.printTree();
-
-			Console.WriteLine("\n*** Init Tree / Adding Nodes ***\n");
-			tree.addNode("/mynode", "10");
-			tree.addNode("/mynode/mynodechild", "111");
-			tree.addNode("/otherNode", "20");
-			tree.addNode("/otherNode/otherNodeChild", "222");
-			tree.addNode("/otherNode/otherNodeChild/otherNodeGrandChild", "22022");
-			tree.addNode("/thirdNode", "33");
-			tree.printTree();
-
-			Console.WriteLine("\n*** Removing Node that does not exist ***\n");
-			tree.removeNode("/otherNodeChild");
-			tree.printTree();
-
-			Console.WriteLine("\n*** Removing subtree at /otherNode/otherNodeChild ***\n");
-			tree.removeNode("/otherNode/otherNodeChild");
-			tree.printTree();
-
-			Console.WriteLine("\n*** Attempting To Remove Root (/) ***\n");
-			tree.removeNode("/");
-			tree.printTree();
-
-			Console.WriteLine("\n***** Serializing to Disk ****\n");
-			tree.writeTree("tree.dat");
-
-			Console.WriteLine("\n***** Deserializing from Disk ****\n");
-			DwarfTree newtree = loadTree("tree.dat");
-			newtree.printTree();
-
-			Console.WriteLine("\n*** Adding /fourthnode ***\n");
-			newtree.addNode("/fourthnode", "ALL PRAISE DOME!");
-
-			Console.WriteLine("\n***** Serializing (Again) ****\n");
-			newtree.writeTree("tree.dat");
-
-			Console.WriteLine("\n***** Deserializing (Again) ****\n");
-			tree = loadTree("tree.dat");
-
-            tree.printTree();
-
-            Console.WriteLine("\n***** Setting data on /mynode to KEEPER  ****\n");
-            System.Threading.Thread.Sleep(2000);
-            tree.setData("/mynode", "KEEPER");
-            tree.printTree();
-
-            Console.WriteLine("\n***** Checking stat() on /mynode  ****\n");
-            DwarfStat mynodestat = tree.getNodeInfo("/mynode");
-            mynodestat.printStat();
 		}
 	}
 
