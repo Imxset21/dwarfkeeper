@@ -29,7 +29,9 @@ namespace DwarfKeeper
 		}
 
         public void disconnect() {
-            IsisSystem.Shutdown();
+            if(IsisSystem.IsisIsActive()) {
+                IsisSystem.Shutdown();
+            }
         }
         
 
