@@ -15,200 +15,176 @@ using Isis;
 
 namespace DwarfCLI
 {
-    public abstract class DwarfCMD2
-    {
-        protected Dictionary<string, dwarfCmd> dwarfCmds;
+    delegate string dwarfFun(string args);
 
-
-		/** Parses a user command to a delegate function.
-		 *
-		 * @param cmd Command to be parsed
-		 */
-		public void parseCmd(string cmd)
-		{
-			//TODO: Parse cmd, seperate command from command args
-			if (String.IsNullOrWhiteSpace(cmd))
-			{
-				return;
-			}
-
-			string[] cmdAndArgs = cmd.Split(new Char[] {' '}, 2);
-			string args = null;
-
-			cmd = cmdAndArgs[0];
-
-			try
-			{
-				args = cmdAndArgs[1];
-			} catch (IndexOutOfRangeException oorE) {
-				;
-			}
-			
-
-			try
-			{
-				dwarfCmds[cmd](args);
-			} catch (KeyNotFoundException kE) {
-				Console.WriteLine("Unrecognized Command: "+cmd);
-			} catch (ArgumentNullException anE){
-				;
-			}
-			return;
-		}
-    }
-
-
-	public class DwarfCLI : DwarfCMD2
+	public class DwarfCLI
 	{
-		private bool isRunning;                            //!< Current running status
-		private DwarfClient client;                        //!< Client backend
+		private static bool isRunning = false;                    //!< Current running status
+		private static DwarfClient client;                        //!< Client backend
+        private static string prompt = "DwarfKeeper>>";
+        private static Dictionary<string, dwarfFun> dwarfFuns;
 
-//		/** Creates a command-line-interface client wrapper.
-//		 *
-//         * By default this is considered to be running.
-//         *
-//		 */
-//		public DwarfCLI()
-//		{
-//			this.client = null;
-//			this.isRunning = true;
-//			
-//			// Setup delegate dictionary
-//			base.dwarfCmds = new Dictionary<string, dwarfCmd>();
-//			base.dwarfCmds["connect"] = this.connect;
-//			base.dwarfCmds["disconnect"] = this.disconnect;
-//			base.dwarfCmds["sendMessage"] = this.sendMessage;
-//			base.dwarfCmds["connectionStatus"] = this.connectionStatus;
-//			base.dwarfCmds["exit"] = this.exit;
-//		}
-//
-//		/** Creates a CLI with the given server IP address.
-//		 *
-//		 * @param ipAddr IP address of the server
-//		 */
-//		public DwarfCLI(string ipAddr) : this()
-//		{
-//			this.client = new dwarfkeeper.DwarfClient(ipAddr);
-//		}
-//
-//		/** Creates a CLI with the given server IP and port.
-//		 *
-//		 * @param ipAddr IP address of the server
-//		 * @param portNum Port number of the server
-//		 */
-//		public DwarfCLI(string ipAddr, int portNum) : this()
-//		{
-//			this.client = new dwarfkeeper.DwarfClient(ipAddr, portNum);
-//		}
-//
-//		/** Gets current running status.
-//		 *
-//		 * @return Running status
-//		 */
-//		public bool getRunningStatus()
-//		{
-//			return this.isRunning;
-//		}
-//
-//		/** Sends a message to the server.
-//		 *
-//		 * If no message is provided, the user is prompted.
-//		 * 
-//		 * @param args Message to be sent
-//		 */
-//		private void sendMessage(string args)
-//		{
-//			if (String.IsNullOrWhiteSpace(args))
-//			{
-//				Console.Write("\nEnter Message: ");
-//				String msg = Console.ReadLine();
-//				this.client.sendMessage(msg);
-//			} else {
-//				this.client.sendMessage(args);
-//			}
-//
-//			return;
-//		}
-//
-//		/** Gets connection status.
-//		 *
-//		 *  Note that this is distinct from running status.
-//		 */
-//		private void connectionStatus(string args)
-//		{
-//			Console.WriteLine("Connection status: " +
-//								(this.client.getConnectionStatus() ? "Open" : "Closed"));
-//			return;
-//		}
-//
-//		/** Disconnects (closes connection to) the server.
-//		 *
-//		 *
-//		 */
-//		private void disconnect(string args)
-//		{
-//			this.client.closeConnection();
-//			return;
-//		}
-//
-//		/** Connects to the server.
-//		 *
-//		 * @param args Arguments regarding connection attempts/timeout
-//		 */
-//		private void connect(string args)
-//		{
-//			//TODO: Parse connect() args w/ reasonable defaults
-//			this.client.connect(5, 1000);
-//			return;
-//		}
-//
-//		/** Disconnects from server and exits the interface.
-//		 *
-//		 * @param args Arguments to pass to disconnect().
-//		 */
-//		private void exit(string args)
-//		{
-//			this.disconnect(args);
-//			this.isRunning = false;
-//			return;
-//		}
+
+        static void initCLI(String groupname = "") {
+		    if(string.IsNullOrWhiteSpace(groupname)) {
+                client = null;
+            } else {
+                connect(groupname);
+            }
+            isRunning = true;
+        }
+
+        static void initCommands() {
+			// Setup delegate dictionary
+			dwarfFuns = new Dictionary<string, dwarfFun>();
+			dwarfFuns["connect"] = (dwarfFun)connect;
+			dwarfFuns["disconnect"] = (dwarfFun)disconnect;
+			dwarfFuns["exit"] = (dwarfFun)exit;
+            dwarfFuns["test"] = (dwarfFun)test;
+            dwarfFuns["create"] = (dwarfFun)create;
+            dwarfFuns["setNode"] = (dwarfFun)setNode;
+        }
+
+		/** Gets current running status.
+		 *
+		 * @return Running status
+		 */
+		static bool getRunningStatus()
+		{
+			return isRunning;
+		}
+
+        static string create(string args) {
+            if(string.IsNullOrWhiteSpace(args)) {
+                return "Error: no arguments - create <path> <data>";
+            }
+
+            string[] arglst = args.Split(new Char[]{' '}, StringSplitOptions.RemoveEmptyEntries);
+            if(arglst.Length < 2) {
+                return "Error: Not enough arguments - create <path> <data>";
+            }
+
+            List<string> retlst = client.create(arglst[0], arglst[1]);
+            return string.Join(" -- ", retlst);
+        }
+
+        static string setNode(string args) {
+            if(string.IsNullOrWhiteSpace(args)) {
+                return "Error: no arguments - setNode <path> <data>";
+            }
+
+            string[] arglst = args.Split(new Char[]{' '}, StringSplitOptions.RemoveEmptyEntries);
+            if(arglst.Length < 2) {
+                return "Error: Not enough arguments - setNode <path> <data>";
+            }
+
+            List<string> retlst = client.setNode(arglst[0], arglst[1]);
+            return string.Join(" -- ", retlst);
+        }
+
+        static string getNode(string args) {
+            if(string.IsNullOrWhiteSpace(args)) {
+                return "Error: no arguments - get <path>";
+            }
+
+            string[] arglst = args.Split(new Char[]{' '}, StringSplitOptions.RemoveEmptyEntries);
+            if(arglst.Length < 2) {
+                return "Error: Not enough arguments - get <path>";
+            }
+
+            List<string> retlst = client.getNode(arglst[0], arglst[1]);
+            return string.Join(" -- ", retlst);
+        }
+
+        static string test(string args) {
+            List<string> retlst = client.test(args);
+            return string.Join(" -- ", retlst);
+        }
+
+		/** Disconnects (closes connection to) the server.
+		 *
+		 *
+		 */
+		static string disconnect(String args)
+		{
+			client.disconnect();
+            prompt = "DwarfKeeper>>";
+			return "Disconnected";
+		}
+
+		/** Connects to the server.
+		 *
+		 * @param args Arguments regarding connection attempts/timeout
+		 */
+		static string connect(string args)
+		{
+            if(client != null) {
+                return "Client is already connected to a server.";
+            }
+
+            client = new DwarfClient(args);
+            prompt = string.Format("{0}>>", args);
+            return string.Format("Connected to {0}", args);
+		}
+
+		/** Disconnects from server and exits the interface.
+		 *
+		 * @param args Arguments to pass to disconnect().
+		 */
+		static string exit(string args)
+		{
+			disconnect(args);
+			isRunning = false;
+			return "Goodbye";
+		}
+        
+        static string handleCMD(string input) {
+            string cmd, args;
+
+            if(String.IsNullOrWhiteSpace(input)) {
+                return "";
+            }
+
+            string[] cmdAndArgs = 
+                input.Split(new char[]{' '}, 2, StringSplitOptions.RemoveEmptyEntries);
+
+            
+            cmd = cmdAndArgs[0];
+
+            if(!isRunning && !cmd.EndsWith("connect")) {
+                return "Client is not connected";
+            }
+
+
+            args = (1 == cmdAndArgs.Length) ? "" : cmdAndArgs[1];
+
+            try {
+                return dwarfFuns[cmd](args);
+            } catch (KeyNotFoundException knfe) {
+                //TODO: Handle - Print help msg?
+            }
+            return "";
+        }
+
+        static void eventLoop() {
+            while(isRunning) {
+				Console.Write("\n " + prompt + " "); // Prompt
+				string line = Console.ReadLine(); // Get string from user
+                Console.WriteLine(handleCMD(line));
+            }
+        }
 
 		static void Main(string[] args) 
 		{
-//            IsisSystem.Start();
+            initCommands();
 
-            DwarfClient dwarfClient = new DwarfClient("dwarfkeeper");
-
-            List<string> stringydwarves = dwarfClient.create("/mynode", "THAT");
-
-            foreach (string rep in stringydwarves) {
-                Console.WriteLine(rep);
+            if(0 == args.Length) {
+                initCLI("");
+            } else {
+                initCLI(args[0]);
             }
 
-            List<DwarfStat> dictDwarves = dwarfClient.getChildren2("/mynode");
-            foreach (DwarfStat rep in dictDwarves) {
-                rep.printStat();
-            }
-
-            IsisSystem.Shutdown();
-            
-			//DwarfCLI cli = null;
-
-			//// Setup CLI for server connection
-			//if (args.Length == 0)
-			//{
-			//	cli = new DwarfCLI("10.32.215.135", 9845);
-			//} else {
-			//	cli = new DwarfCLI(args[0]);
-			//}
-
-			//// Event loop
-			//while (cli.getRunningStatus()) // Loop indefinitely
-			//{
-			//	Console.Write("\n>>DwarfKeeper: "); // Prompt
-			//	string line = Console.ReadLine(); // Get string from user
-			//	cli.parseCmd(line);
-			//}
+            eventLoop();
 
 		}
 	}
