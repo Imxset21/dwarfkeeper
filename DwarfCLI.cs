@@ -15,7 +15,7 @@ using Isis;
 
 namespace DwarfCLI
 {
-    delegate string dwarfFun(string args);
+    delegate string dwarfFun(string[] args);
 
 	public class DwarfCLI
 	{
@@ -24,12 +24,13 @@ namespace DwarfCLI
         private static string prompt = "DwarfKeeper>>";
         private static Dictionary<string, dwarfFun> dwarfFuns;
 
+        private static List<string> noArgCmds = new List<string>() {"disconnect", "exit"};
 
         static void initCLI(String groupname = "") {
 		    if(string.IsNullOrWhiteSpace(groupname)) {
                 client = null;
             } else {
-                connect(groupname);
+                connect(new string[]{groupname});
             }
             isRunning = true;
         }
@@ -43,6 +44,9 @@ namespace DwarfCLI
             dwarfFuns["test"] = (dwarfFun)test;
             dwarfFuns["create"] = (dwarfFun)create;
             dwarfFuns["setNode"] = (dwarfFun)setNode;
+            dwarfFuns["get"] = (dwarfFun)getNode;
+            dwarfFuns["ls"] = (dwarfFun)getChildren;
+            dwarfFuns["ls2"] = (dwarfFun)getChildren2;
         }
 
 		/** Gets current running status.
@@ -54,50 +58,38 @@ namespace DwarfCLI
 			return isRunning;
 		}
 
-        static string create(string args) {
-            if(string.IsNullOrWhiteSpace(args)) {
-                return "Error: no arguments - create <path> <data>";
+        static string create(string[] args) {
+            if(args.Length < 2) {
+                return "Error: Not enought aruments";
             }
-
-            string[] arglst = args.Split(new Char[]{' '}, StringSplitOptions.RemoveEmptyEntries);
-            if(arglst.Length < 2) {
-                return "Error: Not enough arguments - create <path> <data>";
-            }
-
-            List<string> retlst = client.create(arglst[0], arglst[1]);
+            List<string> retlst = client.create(args[0], args[1]);
             return string.Join(" -- ", retlst);
         }
 
-        static string setNode(string args) {
-            if(string.IsNullOrWhiteSpace(args)) {
-                return "Error: no arguments - setNode <path> <data>";
+        static string setNode(string[] args) {
+            if(args.Length < 2) {
+                return "Error: Not enought aruments";
             }
-
-            string[] arglst = args.Split(new Char[]{' '}, StringSplitOptions.RemoveEmptyEntries);
-            if(arglst.Length < 2) {
-                return "Error: Not enough arguments - setNode <path> <data>";
-            }
-
-            List<string> retlst = client.setNode(arglst[0], arglst[1]);
+            List<string> retlst = client.setNode(args[0], args[1]);
             return string.Join(" -- ", retlst);
         }
 
-        static string getNode(string args) {
-            if(string.IsNullOrWhiteSpace(args)) {
-                return "Error: no arguments - get <path>";
-            }
-
-            string[] arglst = args.Split(new Char[]{' '}, StringSplitOptions.RemoveEmptyEntries);
-            if(arglst.Length < 2) {
-                return "Error: Not enough arguments - get <path>";
-            }
-
-            List<string> retlst = client.getNode(arglst[0], arglst[1]);
-            return string.Join(" -- ", retlst);
+        static string getNode(string[] args) {
+            List<DwarfStat> retlst = client.getNodeAll(args[0]);
+            return retlst[0].ToString();
         }
 
-        static string test(string args) {
-            List<string> retlst = client.test(args);
+        static string getChildren(string[] args) {
+            List<string> retlst = client.getChildren(args[0]);
+            return retlst[0];
+        }
+        static string getChildren2(string[] args) {
+            List<DwarfStat> retlst = client.getChildren2(args[0]);
+            return retlst[0].ToString();
+        }
+
+        static string test(string[] args) {
+            List<string> retlst = client.test(args[0]);
             return string.Join(" -- ", retlst);
         }
 
@@ -105,7 +97,7 @@ namespace DwarfCLI
 		 *
 		 *
 		 */
-		static string disconnect(String args)
+		static string disconnect(string[] args)
 		{
 			client.disconnect();
             prompt = "DwarfKeeper>>";
@@ -116,13 +108,13 @@ namespace DwarfCLI
 		 *
 		 * @param args Arguments regarding connection attempts/timeout
 		 */
-		static string connect(string args)
+		static string connect(string[] args)
 		{
             if(client != null) {
                 return "Client is already connected to a server.";
             }
 
-            client = new DwarfClient(args);
+            client = new DwarfClient(args[0]);
             prompt = string.Format("{0}>>", args);
             return string.Format("Connected to {0}", args);
 		}
@@ -131,7 +123,7 @@ namespace DwarfCLI
 		 *
 		 * @param args Arguments to pass to disconnect().
 		 */
-		static string exit(string args)
+		static string exit(string[] args)
 		{
 			disconnect(args);
 			isRunning = false;
@@ -139,7 +131,8 @@ namespace DwarfCLI
 		}
         
         static string handleCMD(string input) {
-            string cmd, args;
+            string cmd;
+            string[] args;
 
             if(String.IsNullOrWhiteSpace(input)) {
                 return "";
@@ -155,8 +148,14 @@ namespace DwarfCLI
                 return "Client is not connected";
             }
 
-
-            args = (1 == cmdAndArgs.Length) ? "" : cmdAndArgs[1];
+            if (1 == cmdAndArgs.Length) {
+                if(!noArgCmds.Contains(cmd)) {
+                    return "Arguments required for cmd: " + cmd;
+                }
+                args = new string[]{};
+            } else {
+                args=cmdAndArgs[1].Split(new char[]{' '},StringSplitOptions.RemoveEmptyEntries);
+            }
 
             try {
                 return dwarfFuns[cmd](args);

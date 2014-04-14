@@ -316,6 +316,24 @@ namespace DwarfData
             }
             this.childlst = string.Join(",", tree.children.Keys.ToArray());
         }
+        
+        public override string ToString() {
+            return string.Format(
+                    "Name: {0}\n" +
+                    "ctime: {1}\n" + 
+                    "mtime: {2}\n" + 
+                    "numChildren: {3}\n" +
+                    "childlst: {4}\n" +
+                    "data: {5}\n" + 
+                    "Err: {6}",
+                    this.name,
+                    this.ctime,
+                    this.mtime,
+                    this.numChildren,
+                    this.childlst,
+                    this.data,
+                    this.err);
+        }
 
         public void printStat() {
             Console.WriteLine(string.Format("Name: {0}", this.name));
