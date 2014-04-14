@@ -9,14 +9,17 @@ MONO_MCS = $(MONO_BIN_DIR)/mcs
 DEBUG ?= -debug
 
 DWARFCLIENT_LIB = DwarfClient.cs 
-DWARFKEEPER_LIB = DwarfCMD.cs DwarfData.cs
+DWARFKEEPER_LIB = DwarfCMD.cs DwarfData.cs DwarfServer.cs
 DWARFSERVER_LIB = 
-EXECUTABLES = DwarfCLI.exe DwarfServer.exe DwarfTest.exe
+EXECUTABLES = DwarfCLI.exe DwarfServer.exe DwarfTest.exe DwarfLogger.exe
 ISIS = Isis.cs
 
 .PHONY: all clean build rebuild
 
 all: build
+
+DwarfLogger.exe: %.exe : %.cs
+	$(MONO_MCS) $(DEBUG) $< $(ISIS) $(DWARFCLIENT_LIB) $(DWARFKEEPER_LIB) -out:$@ -main:DwarfLogger.DwarfLogger
 
 DwarfCLI.exe: %.exe : %.cs
 	$(MONO_MCS) $(DEBUG) $< $(ISIS) $(DWARFCLIENT_LIB) $(DWARFKEEPER_LIB) -out:$@ -main:DwarfCLI.DwarfCLI
