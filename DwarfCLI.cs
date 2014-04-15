@@ -24,7 +24,33 @@ namespace DwarfCLI
         private static string prompt = "DwarfKeeper>>";
         private static Dictionary<string, dwarfFun> dwarfFuns;
 
-        private static List<string> noArgCmds = new List<string>() {"disconnect", "exit"};
+        private static List<string> noArgCmds = new List<string>() {"help","disconnect", "exit"};
+
+        private static Dictionary<string, string[]> helpStrings =
+            new Dictionary<string, string[]>(){
+                {"connect", new string[]{"connect <groupname>", 
+                            "Connect this client to a group (if not already connected"}},
+                {"disconnect", new string[]{"disconnect",
+                            "Disconnect this client if connected, do nothing otherwise"}},
+                {"exit", new string[]{"exit",
+                            "Exit the CLI, disconnecting if necessary"}},
+                {"test", new string[]{"test <message>",
+                            "Send a message for the server to write to console."}},
+                {"create", new string[]{"create <path> <data>",
+                            "Create a new node at the given path with the given data."}},
+                {"set", new string[]{"set <path> <data>",
+                "Set the data at the node at <path> to <data>, fails if node does not exist"}},
+                {"get", new string[]{"get <path>",
+                            "Return information (including data) about the node at <path>"}},
+                {"ls", new string[]{"ls <path>",
+                        "Display a comma-delimited list of the childred of the node at <path>"}},
+                {"ls2", new string[]{"ls2 <path>",
+                        "Return information (excluding data) about the node at <path>"}},
+                {"rmr", new string[]{"rmr <path>",
+                        "Delete (recursively) the node at <path>"}},
+                {"help", new string[]{"help [cmd]",
+                        "Display information about all commands, or the specific one chosen"}}
+        };
 
         static void initCLI(String groupname = "") {
 		    if(string.IsNullOrWhiteSpace(groupname)) {
@@ -43,10 +69,12 @@ namespace DwarfCLI
 			dwarfFuns["exit"] = (dwarfFun)exit;
             dwarfFuns["test"] = (dwarfFun)test;
             dwarfFuns["create"] = (dwarfFun)create;
-            dwarfFuns["setNode"] = (dwarfFun)setNode;
+            dwarfFuns["set"] = (dwarfFun)setNode;
             dwarfFuns["get"] = (dwarfFun)getNode;
             dwarfFuns["ls"] = (dwarfFun)getChildren;
             dwarfFuns["ls2"] = (dwarfFun)getChildren2;
+            dwarfFuns["rmr"] = (dwarfFun)delete;
+            dwarfFuns["help"] = (dwarfFun)help;
         }
 
 		/** Gets current running status.
@@ -57,40 +85,69 @@ namespace DwarfCLI
 		{
 			return isRunning;
 		}
+        
+        static string help(string[] args) {
+            string helpstring = "";
+            if(args.Length > 0) {
+                try {
+                    string[] info = helpStrings[args[0]];
+                    helpstring = string.Format(
+                            "{0,-10}{1,5}{2}\n{1,15}{3}",
+                            args[0], "", info[0], info[1]);
+                    return helpstring;
+                } catch (KeyNotFoundException knfe) {
+                    helpstring += args[0] + " not valid command\n";
+                }
+            }
+            
+            StringBuilder sb = new StringBuilder(helpstring);
+            foreach (string k in helpStrings.Keys) {
+                string[] info = helpStrings[k];
+                sb.Append(string.Format(
+                            "{0,-10}{1,5}{2}\n{1,15}{3}\n",
+                            k, "", info[0], info[1]));
+            }
+            return sb.ToString();
+        }
 
         static string create(string[] args) {
             if(args.Length < 2) {
                 return "Error: Not enought aruments";
             }
-            List<string> retlst = client.create(args[0], args[1]);
-            return string.Join(" -- ", retlst);
+            string retstr = client.create(args[0], args[1]);
+            return retstr;
         }
 
         static string setNode(string[] args) {
             if(args.Length < 2) {
                 return "Error: Not enought aruments";
             }
-            List<string> retlst = client.setNode(args[0], args[1]);
-            return string.Join(" -- ", retlst);
+            string retstr = client.setNode(args[0], args[1]);
+            return retstr;
         }
 
         static string getNode(string[] args) {
-            List<DwarfStat> retlst = client.getNodeAll(args[0]);
-            return retlst[0].ToString();
+            DwarfStat stat = client.getNodeAll(args[0]);
+            return stat.ToString();
         }
 
         static string getChildren(string[] args) {
-            List<string> retlst = client.getChildren(args[0]);
-            return retlst[0];
+            string retstr = client.getChildren(args[0]);
+            return retstr;
         }
         static string getChildren2(string[] args) {
-            List<DwarfStat> retlst = client.getChildren2(args[0]);
-            return retlst[0].ToString();
+            DwarfStat stat = client.getChildren2(args[0]);
+            return stat.ToString();
+        }
+
+        static string delete(string[] args) {
+            List<string> retlst = client.delete(args[0]);
+            return retlst[0];
         }
 
         static string test(string[] args) {
-            List<string> retlst = client.test(args[0]);
-            return string.Join(" -- ", retlst);
+            string retstr = client.test(args[0]);
+            return retstr;
         }
 
 		/** Disconnects (closes connection to) the server.
