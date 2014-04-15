@@ -6,8 +6,8 @@ using Isis;
 namespace DwarfCMD
 {
     public delegate void dwarfCmd(string args);
-
-    [AutoMarshalled]
+	
+	[Serializable(), AutoMarshalled]
     public class DwarfCommand {
         public int opCode;
         public string args;

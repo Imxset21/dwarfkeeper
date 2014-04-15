@@ -15,13 +15,13 @@ namespace DwarfServer
     //TODO: Add logging of some sort to servers - Hook into Isis logging?
 	public class DwarfServer
 	{
+		const int DEFAULT_PORT_NUM = 9845;     //!< Default port number (Isis' default + 2)
+
 		//! Handler delegate for Isis2 Commands from other server instances
 		protected delegate void dwarfIsisHandler(DwarfCommand args);
 
 		//! Handler delegate for opcodes from clients/other servers
 		protected delegate void dwarfOpHandler(string args, bool local);
-		
-		const int DEFAULT_PORT_NUM = 9845;     //!< Default port number (Isis' default + 2)
 		
 		/////////////////////////
 		//  Dwarf Server State //
@@ -62,9 +62,9 @@ namespace DwarfServer
 		}
 
 
-		//////////////////////////////////// 
-		// Private Initialization Methods //
-		//////////////////////////////////// 
+		//////////////////////////////////////
+		// Protected Initialization Methods //
+		//////////////////////////////////////
 
 		/**
 		 * Registers the Op-Code handlers with the Isis2 sub-system.
@@ -73,7 +73,7 @@ namespace DwarfServer
 		 * reply asynchronously so that the handler returns as
 		 * quickly as possible.
 		 */
-        private void defineOpHandlers()
+        protected virtual void defineOpHandlers()
 		{
 			// Register handler for when we get an OPCODE from the client,
 			// i.e. when we get any DwarfKeeper command.
@@ -111,7 +111,7 @@ namespace DwarfServer
 		/**
 		 * Initializes the dwarfOps dictionary with this class' methods.
 		 */
-        private void initDwarfHandlers()
+        protected virtual void initDwarfHandlers()
 		{
             dwarfOps = new Dictionary<DwarfCode, dwarfOpHandler>();
 			
@@ -154,7 +154,7 @@ namespace DwarfServer
 		 * @param[in]    args    Combined path and data to use.
 		 * @param[in]    local   FALSE if this is an external query
          */
-		protected void create(string args, bool local=false)
+		protected virtual void create(string args, bool local=false)
 		{
 			// Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
@@ -269,7 +269,7 @@ namespace DwarfServer
 		 * @param[in]    local   FALSE if this is an external query.
 		 *
 		 */
-		protected void delete(string args, bool local=false)
+		protected virtual void delete(string args, bool local=false)
 		{
 			// Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
@@ -359,7 +359,7 @@ namespace DwarfServer
 		 * @param[in]    args    Path to node to get value of.
 		 * @param[in]    local   Ignored in this function.
 		 */
-		protected void getNode(string args, bool local=false)
+		protected virtual void getNode(string args, bool local=false)
 		{
             // Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
@@ -410,7 +410,7 @@ namespace DwarfServer
 		 *
 		 */
 
-		protected void setNode(string args, bool local=false)
+		protected virtual void setNode(string args, bool local=false)
 		{
             // Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
@@ -501,7 +501,7 @@ namespace DwarfServer
 		 * @param[in]    args    Path to node to check existance of.
 		 * @param[in]    local   Ignored in this function.
 		 */
-		protected void exists(string args, bool local=false)
+		protected virtual void exists(string args, bool local=false)
 		{
 			// Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
@@ -536,7 +536,7 @@ namespace DwarfServer
 		 * @param[in]    args    Path to node to get children of.
 		 * @param[in]    local   Ignored in this function.
 		 */
-        protected void getChildren(string args, bool local=false) 
+        protected virtual void getChildren(string args, bool local=false) 
 		{
 			// Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
@@ -569,7 +569,7 @@ namespace DwarfServer
 		 * @param[in]    args    Path to node to get children of.
 		 * @param[in]    local   Ignored in this function.
 		 */
-		protected void getChildren2(string args, bool local=false)
+		protected virtual void getChildren2(string args, bool local=false)
 		{
 			// Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
@@ -605,7 +605,7 @@ namespace DwarfServer
 		 * @param[in]    local   Ignored in this function.
 		 */
 
-        protected void getNodeAll(string args, bool local=false)
+        protected virtual void getNodeAll(string args, bool local=false)
 		{
 			// Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
@@ -632,18 +632,18 @@ namespace DwarfServer
             dwarfGroup.Reply(stat);
        }
 
-        protected void test(string args, bool local=false)
+        protected virtual void test(string args, bool local=false)
 		{
             Console.WriteLine("TEST || " + args);
             dwarfGroup.Reply("0xDEADWARF-TEST");
         }
 		
-		protected void sync(string args)
+		protected virtual void sync(string args)
 		{
 			throw new NotImplementedException("Sync is not implemented.");
 		}
 
-        protected void printTreeLoop() 
+        protected virtual void printTreeLoop() 
 		{
             while (true) {
                 nodeSys.printTree();
