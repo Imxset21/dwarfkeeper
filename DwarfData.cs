@@ -46,6 +46,17 @@ namespace DwarfData
             mtime = ctime;
 		}
 
+        public DwarfTree(DwarfTree dt) {
+            this.name = dt.name;
+            this.data = dt.data;
+            this.ctime = dt.ctime;
+            this.mtime = dt.mtime;
+            this.children = new Dictionary<string, DwarfTree>();
+
+            foreach (string name in dt.children.Keys) {
+                this.children.Add(name, new DwarfTree(dt.children[name]));
+            }
+        }
 
 		/** Simple factory method to start a new tree.
          *
