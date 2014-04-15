@@ -11,66 +11,86 @@ namespace DwarfTest {
 
         static void Main(string[] args) {
             //testDwarfTree();
-            testClientTreeManip();
+            testDwarfTreeCopy();
+            //testClientTreeManip();
+        }
+
+        static void testDwarfTreeCopy() {
+            DwarfTree tree = DwarfTree.CreateTree(); 
+
+			tree.addNode("/mynode", "10");
+			tree.addNode("/mynode/mynodechild", "111");
+			tree.addNode("/otherNode", "20");
+			tree.addNode("/otherNode/otherNodeChild", "222");
+			tree.addNode("/otherNode/otherNodeChild/otherNodeGrandChild", "22022");
+			tree.addNode("/thirdNode", "33");
+			tree.printTree();
+
+            DwarfTree newTree = new DwarfTree(tree);
+            newTree.printTree();
+
+			tree.removeNode("/otherNode/otherNodeChild");
+            tree.printTree();
+            newTree.printTree();
         }
 
         static void testClientTreeManip() {
             DwarfClient dclient = new DwarfClient("dwarfkeeper");
             Console.WriteLine();
 
-            List<string> strReps;
-            List<DwarfStat> statReps;
+            string strReps;
+            DwarfStat statReps;
 
             //Add a node mynode
             Console.WriteLine(
                 "***** Adding node /mynode with data \"GROOMP\" ******");
             strReps = dclient.create("/mynode", "GROOMP");
-            Trace.Assert(strReps[0].Equals("/mynode"));
-            Console.WriteLine(strReps[0] + "\n");
+            Trace.Assert(strReps.Equals("/mynode"));
+            Console.WriteLine(strReps + "\n");
             statReps = dclient.getNodeAll("/mynode");
-            Trace.Assert(statReps[0].name.Equals("mynode"));
-            statReps[0].printStat();
+            Trace.Assert(statReps.name.Equals("mynode"));
+            statReps.printStat();
             Console.WriteLine("\n");
             
             //Try to add a node that already exists
             Console.WriteLine(
                 "***** Adding node /mynode with data \"GROOMP2\" ******");
             strReps = dclient.create("/mynode", "GROOMP2");
-            Trace.Assert(strReps[0].Equals("/mynode"));
-            Console.WriteLine(strReps[0] + "\n");
+            Trace.Assert(strReps.Equals("/mynode"));
+            Console.WriteLine(strReps + "\n");
             statReps = dclient.getNodeAll("/mynode");
-            Trace.Assert(statReps[0].name.Equals("mynode"));
-            statReps[0].printStat();
+            Trace.Assert(statReps.name.Equals("mynode"));
+            statReps.printStat();
             Console.WriteLine("\n");
 
             //Try to access a node that does not exist
             Console.WriteLine("***** Trying to access a node that " +
                     "has not been created *****");
             statReps = dclient.getNodeAll("/othernode");
-            Trace.Assert(!statReps[0].err.Equals(""));
-            statReps[0].printStat();
+            Trace.Assert(!statReps.err.Equals(""));
+            statReps.printStat();
             Console.WriteLine("\n");
             
             //Try to create an invalid node
             Console.WriteLine("***** Trying to create a node under a parent " +
                     "that does not exist *****");
             strReps = dclient.create("/othernode/that", "GROOMP2");
-            Trace.Assert(!strReps[0].Equals("/othernode/that"));
-            Console.WriteLine(strReps[0] + "\n");
+            Trace.Assert(!strReps.Equals("/othernode/that"));
+            Console.WriteLine(strReps + "\n");
             statReps = dclient.getNodeAll("/othernode/that");
-            Trace.Assert(!statReps[0].err.Equals(""));
-            statReps[0].printStat();
+            Trace.Assert(!statReps.err.Equals(""));
+            statReps.printStat();
             Console.WriteLine("\n");
 
             //Try to change the Data at /mynode
             Console.WriteLine("***** Changing the data at /nynode from " +
                     "\"GROOMP\" to \"NEW_GROOMP\" *****");
             strReps = dclient.setNode("/mynode", "NEW_GROOMP");
-            Trace.Assert(strReps[0].Equals("NEW_GROOMP"));
-            Console.WriteLine(strReps[0] + "\n");
+            Trace.Assert(strReps.Equals("NEW_GROOMP"));
+            Console.WriteLine(strReps + "\n");
             statReps = dclient.getNodeAll("/mynode");
-            Trace.Assert(statReps[0].data.Equals("NEW_GROOMP"));
-            statReps[0].printStat();
+            Trace.Assert(statReps.data.Equals("NEW_GROOMP"));
+            statReps.printStat();
             Console.WriteLine("\n");
 
 
@@ -78,11 +98,11 @@ namespace DwarfTest {
             Console.WriteLine( "***** Adding node /mynode/whatnode " +
                     "with data \"PUMBLOOM\" ******");
             strReps = dclient.create("/mynode/whatnode", "PUMBLOOM");
-            Trace.Assert(strReps[0].Equals("/mynode/whatnode"));
-            Console.WriteLine(strReps[0] + "\n");
+            Trace.Assert(strReps.Equals("/mynode/whatnode"));
+            Console.WriteLine(strReps + "\n");
             statReps = dclient.getNodeAll("/mynode/whatnode");
-            Trace.Assert(statReps[0].name.Equals("whatnode"));
-            statReps[0].printStat();
+            Trace.Assert(statReps.name.Equals("whatnode"));
+            statReps.printStat();
             Console.WriteLine("\n");
 
             //disconnect
