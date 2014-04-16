@@ -455,7 +455,7 @@ namespace DwarfServer
 				   @TODO: This could be a function since delete/create/set use it.
 				*/
 				Predicate<string> p = delegate(string s){
-					return !String.IsNullOrEmpty(s) && s.Equals(path);
+					return !String.IsNullOrEmpty(s) && s.Equals(data);
 				};
 
                 if(retlst.TrueForAll(p)) {

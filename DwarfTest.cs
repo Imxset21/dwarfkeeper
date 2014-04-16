@@ -2,7 +2,10 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Formatters.Binary;
 
+using DwarfLogger;
 using DwarfKeeper;
 using DwarfData;
 
@@ -10,10 +13,79 @@ namespace DwarfTest {
     public class DwarfTest {
 
         static void Main(string[] args) {
-            //testDwarfTree();
-            testDwarfTreeCopy();
+            // testDwarfTree();
+            //testDwarfTreeCopy();
             //testClientTreeManip();
+			logTreeLoad();
+			// logTreeTest();
         }
+
+		static void logTreeLoad()
+		{
+			/*
+			DwarfTreeRecord tr2 = null;
+			object blah = null;
+			BinaryFormatter b = new BinaryFormatter();
+			
+			using(FileStream treeFileStream =
+				  new FileStream(
+					  DwarfLogger.DwarfLogger.DEFAULT_TREE_FILENAME,
+					  FileMode.Open,
+					  FileAccess.Read
+					  ))
+			{
+				blah = b.Deserialize(treeFileStream);
+			}
+			
+			if (blah is DwarfTreeRecord)
+			{
+				tr2 = (DwarfTreeRecord) blah;
+				tr2.tree.printTree();
+			} else {
+				Console.Write("Fuck you.");
+			}
+			*/
+			DwarfTree t = new DwarfTree(DwarfTree.loadTree("dwarf_tree.dat"));
+			t.printTree();
+		}	
+		
+
+		static void logTreeTest()
+		{
+            DwarfTree tree = DwarfTree.CreateTree(); 
+
+			tree.addNode("/mynode", "10");
+			tree.addNode("/mynode/mynodechild", "111");
+			tree.addNode("/otherNode", "20");
+			tree.addNode("/otherNode/otherNodeChild", "222");
+			tree.addNode("/otherNode/otherNodeChild/otherNodeGrandChild", "22022");
+			tree.printTree();
+
+			DwarfTreeRecord tr = new DwarfTreeRecord(tree, 5);
+			DwarfTreeRecord tr2 = null;
+			BinaryFormatter b = new BinaryFormatter();
+
+			using(FileStream treeFileStream = new FileStream(
+					DwarfLogger.DwarfLogger.DEFAULT_TREE_FILENAME,
+					FileMode.Create,
+					FileAccess.ReadWrite
+					))
+			{
+				b.Serialize(treeFileStream, tr);
+			}
+
+			b = new BinaryFormatter();
+
+			using(FileStream treeFileStream = new FileStream(
+					DwarfLogger.DwarfLogger.DEFAULT_TREE_FILENAME,
+					FileMode.Open,
+					FileAccess.Read
+					))
+			{
+				tr2 = (DwarfTreeRecord) b.Deserialize(treeFileStream);
+			}
+			tr2.tree.printTree();
+		}
 
         static void testDwarfTreeCopy() {
             DwarfTree tree = DwarfTree.CreateTree(); 

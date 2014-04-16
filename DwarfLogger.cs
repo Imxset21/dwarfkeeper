@@ -14,7 +14,8 @@ using Isis;
 namespace DwarfLogger
 {
 	[Serializable()]
-	internal class DwarfLogRecord
+	// internal
+	public class DwarfLogRecord
 	{
 		public Queue<DwarfCommand> commandQueue;
 		public int lastMsgNum;
@@ -27,7 +28,8 @@ namespace DwarfLogger
 	}
 
 	[Serializable()]
-	internal class DwarfTreeRecord
+	// internal
+	public class DwarfTreeRecord
 	{
 		public DwarfTree tree;
 		public int lastMsgNum;
@@ -41,54 +43,63 @@ namespace DwarfLogger
 	
 	public class DwarfLogger : DwarfServer.DwarfServer
 	{
-		const string DEFAULT_LOG_FILE_NAME = "dwarf_log.dat";
-		const string DEFAULT_TREE_FILENAME = "dwarf_tree.dat";
-		const int DEFAULT_QUEUE_BACKLOG = 50;
+		public const string DEFAULT_LOG_FILE_NAME = "dwarf_log.dat";
+		public const string DEFAULT_TREE_FILENAME = "dwarf_tree.dat";
+		const int DEFAULT_QUEUE_BACKLOG = 5;
 
 		private Queue<DwarfCommand> commandQueue;
-		private FileStream logFileStream;
-		private FileStream treeFileStream;
+		private string logFileName;
+		private string treeFileName;
 		private int globalMsgNum;
 		
-		public DwarfLogger() : this(DEFAULT_LOG_FILE_NAME, DEFAULT_TREE_FILENAME)
+		public DwarfLogger() : this(DEFAULT_LOG_FILE_NAME, DEFAULT_TREE_FILENAME, 0)
 		{
 			//#2spooky
 		}
 
-		public DwarfLogger(string logFilename, string treeFilename) : base()
+		public DwarfLogger(string logFilename, string treeFilename, int currMsgNum) : base()
 		{
 			this.commandQueue = new Queue<DwarfCommand>();
-			this.logFileStream = 
-				new FileStream(
-					logFilename,
-					FileMode.Create,
-					FileAccess.ReadWrite
-				);
-			this.treeFileStream = 
-				new FileStream(
-					treeFilename,
-					FileMode.Create,
-					FileAccess.ReadWrite
-				);
-		}
+			this.logFileName = logFilename;
+			this.treeFileName = treeFilename;
+			this.globalMsgNum = currMsgNum;
+		}			
 
-		private static void writeLog(Queue<DwarfCommand> cmdQueue, int msgNum)
+		private void writeLog(Queue<DwarfCommand> cmdQueue, int msgNum)
 		{
 			DwarfLogRecord lr = new DwarfLogRecord(cmdQueue, msgNum);
 			BinaryFormatter b = new BinaryFormatter();
-			b.Serialize(this.logFileStream, lr);
+
+			using(FileStream logFileStream = new FileStream(
+					this.logFileName,
+					FileMode.Create,
+					FileAccess.ReadWrite
+					))
+			{
+				b.Serialize(logFileStream, lr);
+			}
 		}
 
-		private static void writeTree(DwarfTree tree, int msgNum)
+
+		private void writeTree(DwarfTree tree, int msgNum)
 		{
 			DwarfTreeRecord tr = new DwarfTreeRecord(tree, msgNum);
 			BinaryFormatter b = new BinaryFormatter();
-			b.Serialize(this.treeFileStream, tr);
+			
+			using(FileStream treeFileStream = new FileStream(
+					this.treeFileName,
+					FileMode.Create,
+					FileAccess.ReadWrite
+					))
+			{
+				b.Serialize(treeFileStream, tr);
+			}
 		}
 
 		private void appendToLog(DwarfCommand cmd)
 		{
 			this.commandQueue.Enqueue(cmd);
+			this.globalMsgNum += 1;
 
 			if (this.commandQueue.Count >= DEFAULT_QUEUE_BACKLOG)
 			{
@@ -96,16 +107,20 @@ namespace DwarfLogger
 				Queue<DwarfCommand> tmpQ = this.commandQueue;
 				
 				// @TODO: Make copy constructor for DwarfTree so we can serialize it
-				DwarfTree tmpT = //base.nodeSys;
+				DwarfTree tmpT = new DwarfTree(this.nodeSys);
 
 				this.commandQueue = new Queue<DwarfCommand>();
-				
 
 				ThreadStart ts = new ThreadStart(() => writeLog(tmpQ, this.globalMsgNum));
-				ThreadStart tr = new ThreadStart(() => writeTree(
+				ThreadStart tr = new ThreadStart(() => writeTree(tmpT, this.globalMsgNum));
 
-				Thread t = new Thread(ts);
-				t.Start();
+				Thread t1 = new Thread(ts);
+				Thread t2 = new Thread(tr);
+				t1.Start();
+				// t2.Start();
+				this.nodeSys.writeTree(this.treeFileName);
+				this.nodeSys = DwarfTree.loadTree(this.treeFileName);
+				this.nodeSys.printTree();
 			}
 		}
 
@@ -143,6 +158,7 @@ namespace DwarfLogger
             
 				//TODO: send update to rest of group
 				if(success) {
+					this.appendToLog(new DwarfCommand((int)DwarfCode.CREATE, args));
 					dwarfGroup.Reply(path);
 				} else {
 				
@@ -212,6 +228,7 @@ namespace DwarfLogger
 				bool success = nodeSys.removeNode(path);
 
 				if(success) {
+					this.appendToLog(new DwarfCommand((int)DwarfCode.DELETE, args));
 					dwarfGroup.Reply(path);
 				} else {
 					string err = string.Format("Error: Failed to delete node {0}", path);
@@ -292,6 +309,7 @@ namespace DwarfLogger
 				bool success = nodeSys.setData(path, data);
 
 				if(success) {
+					this.appendToLog(new DwarfCommand((int)DwarfCode.SET_NODE, args));
 					dwarfGroup.Reply(data);
 				} else {
 					String err = string.Format(
@@ -400,7 +418,7 @@ namespace DwarfLogger
 			
 			Console.WriteLine("Waiting for client connection...");
 		
-			my_server.printTreeLoop();
+			// my_server.printTreeLoop();
 		
 			IsisSystem.WaitForever();
 		}

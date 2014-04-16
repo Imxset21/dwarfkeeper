@@ -9,7 +9,7 @@ MONO_MCS = $(MONO_BIN_DIR)/mcs
 DEBUG ?= -debug
 
 DWARFCLIENT_LIB = DwarfClient.cs 
-DWARFKEEPER_LIB = DwarfCMD.cs DwarfData.cs DwarfServer.cs
+DWARFKEEPER_LIB = DwarfCMD.cs DwarfData.cs DwarfServer.cs DwarfLogger.cs
 DWARFSERVER_LIB = 
 EXECUTABLES = DwarfCLI.exe DwarfServer.exe DwarfTest.exe DwarfLogger.exe
 ISIS = Isis.cs
