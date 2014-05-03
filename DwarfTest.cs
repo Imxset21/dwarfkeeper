@@ -22,33 +22,21 @@ namespace DwarfTest {
 
 		static void logTreeLoad()
 		{
-			/*
-			DwarfTreeRecord tr2 = null;
-			object blah = null;
-			BinaryFormatter b = new BinaryFormatter();
+            DwarfTree tree = DwarfTree.CreateTree(); 
+
+			tree.addNode("/mynode", "10");
+			tree.addNode("/mynode/mynodechild", "111");
+			tree.addNode("/otherNode", "20");
+			tree.addNode("/otherNode/otherNodeChild", "222");
+			tree.addNode("/otherNode/otherNodeChild/otherNodeGrandChild", "22022");
+			tree.printTree();
 			
-			using(FileStream treeFileStream =
-				  new FileStream(
-					  DwarfLogger.DwarfLogger.DEFAULT_TREE_FILENAME,
-					  FileMode.Open,
-					  FileAccess.Read
-					  ))
-			{
-				blah = b.Deserialize(treeFileStream);
-			}
-			
-			if (blah is DwarfTreeRecord)
-			{
-				tr2 = (DwarfTreeRecord) blah;
-				tr2.tree.printTree();
-			} else {
-				Console.Write("Fuck you.");
-			}
-			*/
-			DwarfTree t = new DwarfTree(DwarfTree.loadTree("dwarf_tree.dat"));
-			t.printTree();
+			string tree_path = "tree_data";
+			tree.writeTree(tree_path);
+			tree = DwarfTree.loadTree(tree_path);
+			tree.printTree();
 		}	
-		
+
 
 		static void logTreeTest()
 		{

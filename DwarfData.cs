@@ -221,7 +221,7 @@ namespace DwarfData
 		 */
 		public void printTree() {
 			Console.WriteLine("\n##### TREE START #####");
-			Console.WriteLine("/");
+			Console.WriteLine(this.name + Path.DirectorySeparatorChar);
 			printTreeHelper(this.children);
 			Console.WriteLine("##### TREE END #####\n");
 		}
@@ -246,10 +246,26 @@ namespace DwarfData
          * @param path The file to write the tree to.
 		 */
 		public void writeTree(string path) {
-			Stream s = new FileStream(path, FileMode.Create);
+			// Make directory if it doesn't exist
+			path = path + Path.DirectorySeparatorChar + name;
+			Console.WriteLine(path);
+			if (!Directory.Exists(path)) 
+            {
+				Directory.CreateDirectory(path);
+			}
+
+			// Write data file in directory
+			Stream s = 
+				new FileStream(path + Path.DirectorySeparatorChar + "value.dat", FileMode.Create);
 			BinaryFormatter b = new BinaryFormatter();
-			b.Serialize(s, this);
+			b.Serialize(s, Data);
 			s.Close();
+
+			// Write children
+			foreach (DwarfTree child in children.Values)
+			{
+				child.writeTree(path);
+			}
 		}
 
         /** Load a DwarfTree from the file (as written by writeTree()) located at path.
@@ -258,18 +274,26 @@ namespace DwarfData
          * @return The deserialized DwarfTree if possible, null on failure.
          */
 		public static DwarfTree loadTree(string path) {
-			if(!File.Exists(path)) {
+			if(!Directory.Exists(path)) {
 				return null;
 			}
 
-			DwarfTree tree = null;
-			Stream s = new FileStream(path, FileMode.Open);
+			Stream s = new FileStream(path + Path.DirectorySeparatorChar + "value.dat", FileMode.Open);
 			BinaryFormatter b = new BinaryFormatter();
-            object expected_tree = b.Deserialize(s);
-            if (expected_tree is DwarfTree) {
-			    tree = (DwarfTree)expected_tree;
-            }
+			string data = (string) b.Deserialize(s);
 			s.Close();
+
+			DwarfTree tree = new DwarfTree();
+
+			tree.setData(path, data);
+			tree.Data = data;
+			string[] dirs = Directory.GetDirectories(path,"*");
+			foreach (string dir in dirs)
+			{
+				string lol = Path.GetFileName(dir.TrimEnd(Path.DirectorySeparatorChar));
+				tree.children[lol] = loadTree(dir);
+			}
+
 			return tree;
 		}
 	}
