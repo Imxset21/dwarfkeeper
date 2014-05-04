@@ -277,13 +277,14 @@ namespace DwarfData
 
     [AutoMarshalled]
     public class DwarfStat {
-        public string name;
-        public string ctime;
-        public string mtime;
-        public int numChildren;
-        public string childlst;
-        public string data;
-        public string err;
+        public string name = "";
+        public string ctime = "";
+        public string mtime = "";
+        public int numChildren = -1;
+        public string childlst = "";
+        public string data = "";
+        public string err = "";
+        public string info = "";
 
         private DwarfTree tree;
 
@@ -296,23 +297,17 @@ namespace DwarfData
             this.ctime = node.ctime;
             this.mtime = node.mtime;
             this.numChildren = node.children.Count;
-            this.childlst = "";
-            this.data = "";
-            this.err = "";
         }
 
-        public DwarfStat(String errMsg) {
+        public DwarfStat(String msg, bool error = false) {
             this.tree = null;
+            if (error) {
+                this.err = msg;
+            } else {
+                this.info = msg;
+            }
 
-            this.err = errMsg;
-            this.name = "";
-            this.ctime = "";
-            this.mtime = "";
-            this.numChildren = -1;
-            this.childlst = "";
-            this.data = "";
         }
-
 
         public void includeData() {
             if(null == this.tree) {
