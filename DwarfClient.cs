@@ -25,7 +25,7 @@ namespace DwarfKeeper
             IsisSystem.Start();
             Isis.Msg.RegisterType(typeof(DwarfCommand), 111);
             Isis.Msg.RegisterType(typeof(DwarfStat), 113);
-            dclient = new Client(groupname);
+            dclient = new Client(groupname + "_server");
 		}
 
         /** Disconnect this client from the Isis group (if it is connected).
@@ -51,25 +51,36 @@ namespace DwarfKeeper
          */
         public string create(string path, string data) {
             string args = path + " " + data;
-            List<string> retlst = new List<string>();
+            List<DwarfStat> retlst = new List<DwarfStat>();
 
             this.dclient.P2PQuery((int)IsisDwarfCode.OPCODE,
                     new DwarfCommand((int)DwarfCode.CREATE, args),
                     new EOLMarker(),
                     retlst);
-            return retlst[0];
+
+            if(string.IsNullOrWhiteSpace(retlst[0].err)) {
+                return retlst[0].info;
+            } else {
+                return retlst[0].err;
+            }
         }
 
 
+        /** A test function that just has the connected server return the args sent.
+         */
         public string test(string args) {
-            List<string> retlst = new List<string>();
+            List<DwarfStat> retlst = new List<DwarfStat>();
 
             this.dclient.P2PQuery((int)IsisDwarfCode.OPCODE,
                     new DwarfCommand((int)DwarfCode.TEST, args),
                     new EOLMarker(),
                     retlst);
 
-            return retlst[0];
+            if(string.IsNullOrWhiteSpace(retlst[0].err)) {
+                return retlst[0].info;
+            } else {
+                return retlst[0].err;
+            }
         }
 
         /**
@@ -83,14 +94,18 @@ namespace DwarfKeeper
          *  node, error message otherwise.
          */
         public string getChildren(string path) {
-            List<string> retlst = new List<string>();
+            List<DwarfStat> retlst = new List<DwarfStat>();
 
             this.dclient.P2PQuery((int)IsisDwarfCode.OPCODE,
                     new DwarfCommand((int)DwarfCode.GET_CHILDREN, path),
                     new EOLMarker(),
                     retlst);
 
-            return retlst[0];
+            if(string.IsNullOrWhiteSpace(retlst[0].err)) {
+                return retlst[0].info;
+            } else {
+                return retlst[0].err;
+            }
         }
 
         /**
@@ -127,14 +142,19 @@ namespace DwarfKeeper
          * @param[in]   path    The path to the node to be deleted
          * @return      The path to the deleted node on success, an error message otherwise.
          */
-        public List<string> delete(string path) {
-            List<string> retlst = new List<string>();
+        public string delete(string path) {
+            List<DwarfStat> retlst = new List<DwarfStat>();
+
             this.dclient.P2PQuery((int)IsisDwarfCode.OPCODE,
                     new DwarfCommand((int)DwarfCode.DELETE, path),
                     new EOLMarker(),
                     retlst);
 
-            return retlst;
+            if(string.IsNullOrWhiteSpace(retlst[0].err)) {
+                return retlst[0].info;
+            } else {
+                return retlst[0].err;
+            }
         }
 
 
@@ -151,13 +171,18 @@ namespace DwarfKeeper
          */
         public string setNode(string path, string data) {
             string args = path + " " + data;
-            List<string> retlst = new List<string>();
+            List<DwarfStat> retlst = new List<DwarfStat>();
 
             this.dclient.P2PQuery((int)IsisDwarfCode.OPCODE,
                     new DwarfCommand((int)DwarfCode.SET_NODE, args),
                     new EOLMarker(),
                     retlst);
-            return retlst[0];
+
+            if(string.IsNullOrWhiteSpace(retlst[0].err)) {
+                return retlst[0].info;
+            } else {
+                return retlst[0].err;
+            }
         }
 
         /**

@@ -8,110 +8,136 @@ using System.Threading;
 
 using DwarfCMD;
 using DwarfData;
+using DwarfListener;
 using Isis;
 
 namespace DwarfServer
 {
     //TODO: Add logging of some sort to servers - Hook into Isis logging?
-	public class DwarfServer
+	public class DwarfServer : DwarfListener.DwarfListener
 	{
-		const int DEFAULT_PORT_NUM = 9845;     //!< Default port number (Isis' default + 2)
+        private bool initializing = true;
+        private string groupname;
 
-		//! Handler delegate for Isis2 Commands from other server instances
-		protected delegate void dwarfIsisHandler(DwarfCommand args);
-
-		//! Handler delegate for opcodes from clients/other servers
-		protected delegate void dwarfOpHandler(string args, bool local);
-		
 		/////////////////////////
 		//  Dwarf Server State //
 		/////////////////////////
 
-		//! Underlying node file system
-        protected DwarfTree nodeSys;
+		//! Isis2 Server Group this server will join in addition to full group
+        protected Queue<DwarfCommand> cmdqueue;
 
-		//! Op-Code to Method dictionary for handling requests
-        protected Dictionary<DwarfCode, dwarfOpHandler> dwarfOps;
-
-		//! Isis2 Group this server will join
-        protected Group dwarfGroup;
+        List<int> groupCommands = new List<int> {
+            (int)DwarfCode.CREATE,
+            (int)DwarfCode.DELETE,
+            (int)DwarfCode.SET_NODE
+        };
 
 		/////////////////////////////// 
 		// Dwarf Server Constructors //
 		///////////////////////////////
 
-		/** 
-		 * Starts the TCP server on localhost with port number.
-		 */
-		public DwarfServer()
+
+        /**
+         * Create a new DwarfServer instance, with the given groupname.
+         *
+         * @param groupname The name of the group for this server to join
+         */
+		public DwarfServer(string groupname) : base(groupname)
 		{
             this.nodeSys = DwarfTree.CreateTree();
+            this.cmdqueue = new Queue<DwarfCommand>();
+            this.groupname = groupname;
 
-            this.dwarfGroup = new Group("dwarfkeeper");
-
-            this.defineOpHandlers();
+            dwarfGroup.Handlers[(int)DwarfCMD.IsisDwarfCode.UPDATE] += 
+                                                    (dwarfIsisHandler)groupCmdHandler;
             this.initDwarfHandlers();
-
-            Isis.Msg.RegisterType(typeof(DwarfCommand), 111);
-            Isis.Msg.RegisterType(typeof(DwarfStat), 113);
-
-            this.dwarfGroup.Join();
-
-			//TODO: What to do server is still active. No-op?
-			//this.tcpServer.Start();
 		}
+
+        public void start() {
+            dwarfGroup.Join();
+
+            // TODO: Retrieve latest tree from Loggers
+            Thread.Sleep(2000);
+           
+            dwarfSubGroup = new Group(this.groupname + "_server");
+
+            // TODO: clear cmd queue
+            initializing = false;
+            
+            dwarfSubGroup.Handlers[(int)IsisDwarfCode.OPCODE] += 
+                (dwarfIsisHandler)delegate(DwarfCommand cmd) 
+				{
+					// Thread will execute with this server's registered
+					// delegate method for the opcode recieved.
+                    ThreadStart ts = new ThreadStart(() => passCommand(cmd));
+                    Thread t = new Thread(ts);
+                    dwarfSubGroup.SetReplyThread(t);
+                    t.Start();
+                };
+			
+			// Only allow client requests of the OPCODE kind
+            dwarfSubGroup.AllowClientRequests((int)IsisDwarfCode.OPCODE);
+            dwarfSubGroup.Join();
+        }
+
+
+        private void groupCmdHandler(DwarfCommand cmd) {
+            if(initializing) {
+                lock (cmdqueue) {
+                    cmdqueue.Enqueue(cmd);
+                }
+            } else {
+                ThreadStart ts = 
+                    new ThreadStart(() =>
+                        dwarfOps[(DwarfCode)cmd.opCode](cmd.args));
+
+                Thread t = new Thread(ts);
+                dwarfGroup.SetReplyThread(t);
+                t.Start();
+            }
+        }
 
 
 		//////////////////////////////////////
 		// Protected Initialization Methods //
 		//////////////////////////////////////
 
-		/**
-		 * Registers the Op-Code handlers with the Isis2 sub-system.
-		 *  
-		 * Each handler spins off a seperate thread to handle the
-		 * reply asynchronously so that the handler returns as
-		 * quickly as possible.
-		 */
-        protected virtual void defineOpHandlers()
-		{
-			// Register handler for when we get an OPCODE from the client,
-			// i.e. when we get any DwarfKeeper command.
-            dwarfGroup.Handlers[(int)IsisDwarfCode.OPCODE] += 
-                (dwarfIsisHandler)delegate(DwarfCommand cmd) 
-				{
-					// Thread will execute with this server's registered
-					// delegate method for the opcode recieved.
-                    ThreadStart ts =
-                        new ThreadStart(() => 
-                            dwarfOps[(DwarfCode)cmd.opCode](cmd.args, local:false));
+        protected void passCommand(DwarfCommand cmd) 
+        { 
+            // If this is a command that causes changes in the data forward on to the full group
+            List<DwarfStat> retlst = new List<DwarfStat>(); 
 
-                    Thread t = new Thread(ts);
-                    dwarfGroup.SetReplyThread(t);
-                    t.Start();
+            if (groupCommands.Contains(cmd.opCode)) 
+            {
+                dwarfGroup.OrderedQuery (
+                    Group.ALL,
+                    (int)IsisDwarfCode.UPDATE,
+                    cmd,
+                    new EOLMarker(),
+                    retlst
+                );
+
+                // Predicate to check that if a server returned an error.
+                Predicate<DwarfStat> p = delegate(DwarfStat ds)
+                {
+                    return (null != ds) && string.IsNullOrWhiteSpace(ds.err);
                 };
-			
-			// Only allow client requests of the OPCODE kind
-            dwarfGroup.AllowClientRequests((int)IsisDwarfCode.OPCODE);
 
-			// Register handler for responding to other servers' updates
-            dwarfGroup.Handlers[(int)IsisDwarfCode.UPDATE] += 
-                (dwarfIsisHandler)delegate(DwarfCommand cmd)
-				{
-                    ThreadStart ts = 
-                        new ThreadStart(() =>
-                            dwarfOps[(DwarfCode)cmd.opCode](cmd.args, local:true));
-
-                    Thread t = new Thread(ts);
-                    dwarfGroup.SetReplyThread(t);
-                    t.Start();
-                };
+                if(retlst.TrueForAll(p)) {
+                    dwarfSubGroup.Reply(retlst[0]);
+                } else {
+                    //TODO: handle/find error
+                    dwarfSubGroup.Reply(new DwarfStat("some server had an error",error:true));
+                }
+            } else {
+                dwarfOps[(DwarfCode)(cmd.opCode)](cmd.args);
+            }
         }
 
 		/**
 		 * Initializes the dwarfOps dictionary with this class' methods.
 		 */
-        protected virtual void initDwarfHandlers()
+        protected override void initDwarfHandlers()
 		{
             dwarfOps = new Dictionary<DwarfCode, dwarfOpHandler>();
 			
@@ -154,12 +180,12 @@ namespace DwarfServer
 		 * @param[in]    args    Combined path and data to use.
 		 * @param[in]    local   FALSE if this is an external query
          */
-		protected virtual void create(string args, bool local=false)
+		protected override void create(string args)
 		{
 			// Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
 			{
-				dwarfGroup.Reply("Malformed/empty arguments to create.");
+				dwarfGroup.Reply(new DwarfStat("Malformed/empty arguments to create.", error:true));
 				return;
 			}
 
@@ -169,81 +195,39 @@ namespace DwarfServer
 			 */
             string[] argslst = args.Split();
             if(argslst.Length < 2) {
-                dwarfGroup.Reply("Too few arguments provided to create.");
+                dwarfGroup.Reply(new DwarfStat("Too few arguments provided to create.", error:true));
                 return;
             }
             string path = argslst[0];
             string data = argslst[1];
             
-			/*
-			  A request is considered local if we're the point of origin
-			  for this request,  i.e. the client has issued a create to us.
-			 */
-            if(!local) {
-                
-				/* 
-				   Perform an in-order query to the group to make
-				   sure everyone gets this write request at the
-				   same time in the global request stream.
-				*/
-				List<string> retlst = new List<string>();
-                dwarfGroup.OrderedQuery(
-					Group.ALL,
-					(int)IsisDwarfCode.UPDATE,
-					new DwarfCommand((int)DwarfCode.CREATE, args),
-					new EOLMarker(),
-					retlst
-				);
-				
-				/* 
-				   Use predicate to make sure all nodes have successfuly 
-				   completed the request before replying to the client.
-				   If any of them failed, return an error string.
-				*/
-                Predicate<string> p = delegate(string s){
-					return !String.IsNullOrEmpty(s) && s.Equals(path);
-				};
-
-                if(retlst.TrueForAll(p)) 
-				{
-                    dwarfGroup.Reply(path); // Replies IFF all servers succeeded
-                } else {
-                    string err = string.Format(
-                            "Error: Not all servers created node {0}",
-                            path, data);
-                    dwarfGroup.Reply(err);
-                }
-			
-			} else {
-				/*
-				  Actually performs the write to this server's local tree.
-				  
-				  We are responding to an Isis query, which may or may not
-				  have originated from this very server, but we cannot
-				  assume either case.
-				  
-				  @TODO: Support ACL inputs on adding new node
-				  @TODO: Support error messages on bad node add
-				*/
-				
-				bool success = this.nodeSys.addNode(path, data);
+            /*
+              Actually performs the write to this server's local tree.
+              
+              We are responding to an Isis query, which may or may not
+              have originated from this very server, but we cannot
+              assume either case.
+              
+              @TODO: Support ACL inputs on adding new node
+              @TODO: Support error messages on bad node add
+            */
             
-				//TODO: send update to rest of group
-				if(success) {
-				
-					dwarfGroup.Reply(path);
+            bool success = this.nodeSys.addNode(path, data);
+        
+            if(success) {
+            
+                dwarfGroup.Reply(new DwarfStat(path));
 
-					//TODO Remove this print
-					nodeSys.printTree();
+                //TODO Remove this print
+                nodeSys.printTree();
 
-				} else {
-				
-					string err = string.Format(
-                        "Error: Failed to create node {0}, with data {1}",
-                        path, data);
-					dwarfGroup.Reply(err);
-				}
-			}
+            } else {
+            
+                string err = string.Format(
+                    "Error: Failed to create node {0}, with data {1}",
+                    path, data);
+                dwarfGroup.Reply(new DwarfStat(err, error:true));
+            }
 		}
 		
 		/**
@@ -269,86 +253,42 @@ namespace DwarfServer
 		 * @param[in]    local   FALSE if this is an external query.
 		 *
 		 */
-		protected virtual void delete(string args, bool local=false)
+		protected override void delete(string args)
 		{
 			// Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
 			{
-				dwarfGroup.Reply("Malformed/empty arguments to delete.");
+				dwarfGroup.Reply(new DwarfStat("Malformed/empty arguments to create.", error:true));
 				return;
 			}
 
             string[] argslst = args.Split();
             if(argslst.Length < 1) {
-				dwarfGroup.Reply("Too few arguments provided to delete.");
+				dwarfGroup.Reply(new DwarfStat("Too few arguments provided to delete.", error:true));
                 return;
             }
 			
             string path = argslst[0];
 
-			/*
-			  A request is considered local if we're the point of origin
-			  for this request,  i.e. the client has issued a delete to us.
-			 */
-            if(!local) {
-                
-				/* 
-				   Perform an in-order query to the group to make
-				   sure everyone gets this delete request at the
-				   same time in the global request stream.
-				*/
-                List<string> retlst = new List<string>();
+            /*
+              Actually deletes the node in this server's local tree.
+              
+              We are responding to an Isis query, which may or may not
+              have originated from this very server, but we cannot
+              assume either case.
+                             
+              @TODO: Enable Logging & user feedback
+            */
+        
+            bool success = nodeSys.removeNode(path);
 
-                dwarfGroup.OrderedQuery(
-					Group.ALL,
-					(int)IsisDwarfCode.UPDATE,
-					new DwarfCommand((int)DwarfCode.DELETE, args),
-					new EOLMarker(),
-					retlst
-				);
-
-				/* 
-				   Use predicate to make sure all nodes have successfuly 
-				   completed the request before replying to the client.
-				   If any of them failed, return an error string.
-
-				   @TODO: This could be a function since delete/create/set use it.
-				*/
-				Predicate<string> p = delegate(string s){
-					return !String.IsNullOrEmpty(s) && s.Equals(path);
-				};
-				
-                if(retlst.TrueForAll(p)) {
-                    dwarfGroup.Reply(path);
-                } else {
-                    string err = string.Format(
-						"Error: Not all servers able to delete node {0}",
-						path
-					);
-                    dwarfGroup.Reply(err);
-                }
-
+            if(success) {
+                dwarfGroup.Reply(new DwarfStat(path));
             } else {
-				/*
-				  Actually deletes the node in this server's local tree.
-				  
-				  We are responding to an Isis query, which may or may not
-				  have originated from this very server, but we cannot
-				  assume either case.
-				  				 
-				  @TODO: Enable Logging & user feedback
-				*/
-            
-				bool success = nodeSys.removeNode(path);
-
-				if(success) {
-					dwarfGroup.Reply(path);
-				} else {
-					string err = string.Format("Error: Failed to delete node {0}", path);
-					dwarfGroup.Reply(err);
-				}
-			}
-		}
+                string err = string.Format("Error: Failed to delete node {0}", path);
+				dwarfGroup.Reply(new DwarfStat(err, error:true));
+            }
+        }
 
 		/**
 		 * Gets the value of a given node.
@@ -359,19 +299,21 @@ namespace DwarfServer
 		 * @param[in]    args    Path to node to get value of.
 		 * @param[in]    local   Ignored in this function.
 		 */
-		protected virtual void getNode(string args, bool local=false)
+		protected override void getNode(string args)
 		{
             // Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
 			{
-				dwarfGroup.Reply("Malformed/empty arguments to getNode.");
+				dwarfSubGroup.Reply(
+                        new DwarfStat("Malformed/empty arguments to getNode.", error:true));
 				return;
 			}
 
             //TODO Support watches
             string[] argslst = args.Split();
             if(argslst.Length < 1) {
-                dwarfGroup.Reply(new DwarfStat("Too few arguments provided to getNode."));
+                dwarfSubGroup.Reply(
+                        new DwarfStat("Too few arguments provided to getNode.",error:true));
                 return;
             }
 			
@@ -379,10 +321,10 @@ namespace DwarfServer
 
             if(null != stat) {
                 stat.includeData();
-                dwarfGroup.Reply(stat);
+                dwarfSubGroup.Reply(stat);
             } else {
-                stat = new DwarfStat("Get Failed.");
-                dwarfGroup.Reply(stat);
+                stat = new DwarfStat("Get Failed.", error:true);
+                dwarfSubGroup.Reply(stat);
             }
 		}
 
@@ -410,12 +352,12 @@ namespace DwarfServer
 		 *
 		 */
 
-		protected virtual void setNode(string args, bool local=false)
+		protected override void setNode(string args)
 		{
             // Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
 			{
-				dwarfGroup.Reply("Malformed/empty arguments to setNode.");
+                dwarfGroup.Reply(new DwarfStat("Malformed/empty arguments to setNode."));
 				return;
 			}
 
@@ -427,70 +369,26 @@ namespace DwarfServer
             string path = argslst[0];
             string data = argslst[1];
 			
-			/*
-			  A request is considered local if we're the point of origin
-			  for this request,  i.e. the client has issued a delete to us.
-			 */
-            if(!local) {
-				/* 
-				   Perform an in-order query to the group to make
-				   sure everyone gets this set request at the
-				   same time in the global request stream.
-				*/
-                List<string> retlst = new List<string>();
-				
-                dwarfGroup.OrderedQuery(
-					Group.ALL,
-					(int)IsisDwarfCode.UPDATE,
-					new DwarfCommand((int)DwarfCode.SET_NODE, args),
-					new EOLMarker(),
-					retlst
-				);
-				
-				/* 
-				   Use predicate to make sure all nodes have successfuly 
-				   completed the request before replying to the client.
-				   If any of them failed, return an error string.
+            /*
+              Actually deletes the node in this server's local tree.
+              
+              We are responding to an Isis query, which may or may not
+              have originated from this very server, but we cannot
+              assume either case.
+                             
+              @TODO: Enable Logging & user feedback
+            */
+            bool success = nodeSys.setData(path, data);
 
-				   @TODO: This could be a function since delete/create/set use it.
-				*/
-				Predicate<string> p = delegate(string s){
-					return !String.IsNullOrEmpty(s) && s.Equals(data);
-				};
-
-                if(retlst.TrueForAll(p)) {
-                    dwarfGroup.Reply(data);
-                } else {
-                    string err = string.Format(
-						"Error: Not all servers able to set node {0} to {1}",
-						path,
-						data
-					);
-                    dwarfGroup.Reply(err);
-                }
-
+            if(success) {
+                dwarfGroup.Reply(new DwarfStat(path));
             } else {
-				/*
-				  Actually deletes the node in this server's local tree.
-				  
-				  We are responding to an Isis query, which may or may not
-				  have originated from this very server, but we cannot
-				  assume either case.
-				  				 
-				  @TODO: Enable Logging & user feedback
-				*/
-				bool success = nodeSys.setData(path, data);
-
-				if(success) {
-					dwarfGroup.Reply(data);
-				} else {
-					String err = string.Format(
-                        "Failed to set data to {0} at node {1}",
-                        data, path);
-					dwarfGroup.Reply(err);
-				}
-			}
-		}
+                String err = string.Format(
+                    "Failed to set data to {0} at node {1}",
+                    data, path);
+                dwarfGroup.Reply(new DwarfStat(err, error:true));
+            }
+        }
 		
 		/**
 		 * Checks if the a given node exists.
@@ -501,18 +399,18 @@ namespace DwarfServer
 		 * @param[in]    args    Path to node to check existance of.
 		 * @param[in]    local   Ignored in this function.
 		 */
-		protected virtual void exists(string args, bool local=false)
+		protected override void exists(string args)
 		{
 			// Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
 			{
-				dwarfGroup.Reply("Malformed/empty arguments to exists.");
+                dwarfSubGroup.Reply(new DwarfStat("Malformed/empty arguments to exists."));
 				return;
 			}
 
             string[] argslst = args.Split();
             if(argslst.Length < 1) {
-                dwarfGroup.Reply(new DwarfStat("No Arguments Provided to exists."));
+                dwarfSubGroup.Reply(new DwarfStat("No Arguments Provided to exists.", error:true));
                 return;
             }
 
@@ -520,10 +418,10 @@ namespace DwarfServer
 
             if(null != stats) {
                 stats.includeData();
-                dwarfGroup.Reply(stats);
+                dwarfSubGroup.Reply(stats);
             } else {
-                stats = new DwarfStat(argslst[0] + " does not exist");
-                dwarfGroup.Reply(stats);
+                stats = new DwarfStat(argslst[0] + " does not exist", error:true);
+                dwarfSubGroup.Reply(stats);
             }
 		}
 
@@ -536,12 +434,13 @@ namespace DwarfServer
 		 * @param[in]    args    Path to node to get children of.
 		 * @param[in]    local   Ignored in this function.
 		 */
-        protected virtual void getChildren(string args, bool local=false) 
+        protected override void getChildren(string args) 
 		{
 			// Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
 			{
-				dwarfGroup.Reply("Malformed/empty arguments to getChildren.");
+                dwarfSubGroup.Reply(
+                        new DwarfStat("Malformed/empty arguments to getChildren.",error:true));
 				return;
 			}
 
@@ -553,11 +452,11 @@ namespace DwarfServer
             string[] childs = nodeSys.getChildList(argslst[0]);
 
             if(null == childs) {
-                dwarfGroup.Reply("Error: Get Children Failed");
+                dwarfSubGroup.Reply(new DwarfStat("Error: Get Children Failed", error:true));
                 return;
             }
            
-            dwarfGroup.Reply(string.Join(",", childs));
+            dwarfSubGroup.Reply(new DwarfStat(string.Join(",", childs)));
         }
 		
 		/**
@@ -569,30 +468,31 @@ namespace DwarfServer
 		 * @param[in]    args    Path to node to get children of.
 		 * @param[in]    local   Ignored in this function.
 		 */
-		protected virtual void getChildren2(string args, bool local=false)
+		protected override void getChildren2(string args)
 		{
 			// Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
 			{
-				dwarfGroup.Reply("Malformed/empty arguments to getChildren2.");
+				dwarfSubGroup.Reply(
+                        new DwarfStat("Malformed/empty arguments to getChildren2.", error:true));
 				return;
 			}
 
             string[] argslst = args.Split();
             if(argslst.Length < 1) {
-                dwarfGroup.Reply("Error: No Arguments Provided to getChildren2");
+                dwarfSubGroup.Reply(new DwarfStat("No Arguments Provided to getChildren2", error:true));
                 return;
             }
             
             DwarfStat stat = nodeSys.getNodeInfo(argslst[0]);
 
             if(null == stat) {
-                dwarfGroup.Reply("Error: getChildren2 Failed");
+                dwarfSubGroup.Reply(new DwarfStat("getChildren2 Failed", error:true));
                 return;
             }
             stat.includeChildLst();
            
-            dwarfGroup.Reply(stat);
+            dwarfSubGroup.Reply(stat);
 		}
 		
 		/**
@@ -604,52 +504,44 @@ namespace DwarfServer
 		 * @param[in]    args    Path to node to get children and their data from.
 		 * @param[in]    local   Ignored in this function.
 		 */
-
-        protected virtual void getNodeAll(string args, bool local=false)
+        protected override void getNodeAll(string args)
 		{
 			// Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
 			{
-				dwarfGroup.Reply("Malformed/empty arguments to getNodeAll.");
+				dwarfSubGroup.Reply(
+                        new DwarfStat("Malformed/empty arguments to getNodeAll.", error:true));
 				return;
 			}
 
             string[] argslst = args.Split();
             if(argslst.Length < 1) {
-                dwarfGroup.Reply(new DwarfStat("Error: No Arguments Provided to getNodeAll"));
+                dwarfSubGroup.Reply(new DwarfStat("Error: No Arguments Provided to getNodeAll"));
                 return;
             }
             
             DwarfStat stat = nodeSys.getNodeInfo(argslst[0]);
 
             if(null == stat) {
-                dwarfGroup.Reply(new DwarfStat("Error: getNodeAll Failed"));
+                dwarfSubGroup.Reply(new DwarfStat("Error: getNodeAll Failed"));
                 return;
             }
             stat.includeChildLst();
             stat.includeData();
            
-            dwarfGroup.Reply(stat);
+            dwarfSubGroup.Reply(stat);
        }
 
-        protected virtual void test(string args, bool local=false)
+        protected void test(string args)
 		{
             Console.WriteLine("TEST || " + args);
-            dwarfGroup.Reply("0xDEADWARF-TEST");
+            dwarfSubGroup.Reply(new DwarfStat("0xDEADWARF-TEST"));
         }
 		
-		protected virtual void sync(string args)
+		protected void sync(string args)
 		{
 			throw new NotImplementedException("Sync is not implemented.");
 		}
-
-        protected virtual void printTreeLoop() 
-		{
-            while (true) {
-                nodeSys.printTree();
-                Thread.Sleep(5000);
-            }
-        }
 		
 		static void Main(string[] args)
 		{
@@ -660,7 +552,8 @@ namespace DwarfServer
                 IsisSystem.Start();
             }
 			
-			DwarfServer my_server = new DwarfServer();
+			DwarfServer my_server = new DwarfServer("dwarfkeeper");
+            my_server.start();
 
 			Console.WriteLine ("Waiting for client connection...");
 
