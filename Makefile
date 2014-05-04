@@ -1,5 +1,5 @@
 # Dwarfkeeper
-MONO_DIR ?= /opt/monodevelop
+MONO_DIR ?= /usr
 MONO_BIN_DIR = $(MONO_DIR)/bin
 
 MONO_BIN = $(MONO_BIN_DIR)/mono

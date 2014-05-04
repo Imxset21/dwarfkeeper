@@ -6,7 +6,6 @@ using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 
 using DwarfListener;
-using DwarfServer;
 using DwarfCMD;
 using DwarfData;
 
@@ -14,7 +13,7 @@ using Isis;
 
 namespace DwarfLogger
 {
-	[Serializable()]
+	[Serializable]
 	// internal
 	public class DwarfLogRecord
 	{
@@ -28,7 +27,7 @@ namespace DwarfLogger
 		}
 	}
 
-	[Serializable()]
+	[Serializable]
 	// internal
 	public struct DwarfTreeRecord
 	{
@@ -116,42 +115,24 @@ namespace DwarfLogger
         }
 
 
-		private void writeTree(DwarfTree tree, int msgNum)
+		private void writeTree(DwarfTree tree, int msgNum, string rootpath)
 		{
-			DwarfTreeRecord tr = new DwarfTreeRecord(tree, msgNum);
-			
-			using(FileStream fs = new FileStream(
-					"tr.tmp",
-					FileMode.Create,
-					FileAccess.ReadWrite
-					))
-			{
-                BinaryFormatter b = new BinaryFormatter();
-				b.Serialize(fs, tr);
-                fs.Flush(true);
-                System.IO.File.Copy("tr.tmp", this.treeFileName, true);
-                System.IO.File.Delete("tr.tmp");
-			}
-            tree.printTree();
+            string info_path = Path.Combine(rootpath, "Info.dat");
+
+            // Create the root directory if it exists
+            if(!Directory.Exists(rootpath)) {
+                Directory.CreateDirectory(rootpath);
+            }
+
+            // Write the msgNum to info file
+            File.WriteAllText(info_path, "MSGNUM: " + msgNum);
+
+            //write the tree
+            tree.writeTree(rootpath);
 		}
 
-        public static void loadTreeRecord(string filename) {
-            DwarfTreeRecord dtr;
-            using(Stream s = File.Open(
-                        filename,
-                        FileMode.Open,
-                        FileAccess.Read))
-            {
-                BinaryFormatter b = new BinaryFormatter();
-                object o= b.Deserialize(s);
-                try {
-                    dtr = (DwarfTreeRecord)o;
-                    dtr.tree.printTree();
-                    Console.WriteLine(dtr.lastMsgNum);
-                } catch {
-                    Console.WriteLine("GOOMAB");
-                }
-            }
+        public static DwarfTree loadTreeRecord(string rootpath) {
+            return DwarfTree.loadTree(rootpath);
         }
 
 		private void appendToLog(DwarfCommand cmd)
@@ -170,7 +151,14 @@ namespace DwarfLogger
 				this.commandQueue = new Queue<DwarfCommand>();
 
 				ThreadStart ts = new ThreadStart(() => writeLog(tmpQ, this.globalMsgNum));
-				ThreadStart tr = new ThreadStart(() => writeTree(tmpT, this.globalMsgNum));
+				ThreadStart tr = 
+                    new ThreadStart(() => 
+                        writeTree(
+                            tmpT, 
+                            this.globalMsgNum, 
+                            Directory.GetCurrentDirectory() + "/TreeData"
+                        )
+                    );
 
 				Thread t1 = new Thread(ts);
 				Thread t2 = new Thread(tr);
