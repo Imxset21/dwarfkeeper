@@ -10,8 +10,6 @@ using DwarfData;
 using DwarfCMD;
 using Isis;
 
-//FIXME:	There is a bug that if send_message is the first command, 
-//			(without any setup) the client crashes with a null pointer exception.
 
 namespace DwarfCLI
 {
@@ -23,15 +21,18 @@ namespace DwarfCLI
 		private static DwarfClient client;                        //!< Client backend
         private static string prompt = "DwarfKeeper>>";
         private static Dictionary<string, dwarfFun> dwarfFuns;
+        private static string group = "";
 
-        private static List<string> noArgCmds = new List<string>() {"help","disconnect", "exit"};
+        private static List<string> noArgCmds = 
+            new List<string>() {
+                "help",
+                "exit",
+            };
 
         private static Dictionary<string, string[]> helpStrings =
             new Dictionary<string, string[]>(){
                 {"connect", new string[]{"connect <groupname>", 
                             "Connect this client to a group (if not already connected"}},
-                {"disconnect", new string[]{"disconnect",
-                            "Disconnect this client if connected, do nothing otherwise"}},
                 {"exit", new string[]{"exit",
                             "Exit the CLI, disconnecting if necessary"}},
                 {"test", new string[]{"test <message>",
@@ -65,7 +66,6 @@ namespace DwarfCLI
 			// Setup delegate dictionary
 			dwarfFuns = new Dictionary<string, dwarfFun>();
 			dwarfFuns["connect"] = (dwarfFun)connect;
-			dwarfFuns["disconnect"] = (dwarfFun)disconnect;
 			dwarfFuns["exit"] = (dwarfFun)exit;
             dwarfFuns["test"] = (dwarfFun)test;
             dwarfFuns["create"] = (dwarfFun)create;
@@ -76,6 +76,7 @@ namespace DwarfCLI
             dwarfFuns["rmr"] = (dwarfFun)delete;
             dwarfFuns["help"] = (dwarfFun)help;
         }
+
 
 		/** Gets current running status.
 		 *
@@ -141,25 +142,14 @@ namespace DwarfCLI
         }
 
         static string delete(string[] args) {
-            List<string> retlst = client.delete(args[0]);
-            return retlst[0];
+            string retstr = client.delete(args[0]);
+            return retstr;
         }
 
         static string test(string[] args) {
             string retstr = client.test(args[0]);
             return retstr;
         }
-
-		/** Disconnects (closes connection to) the server.
-		 *
-		 *
-		 */
-		static string disconnect(string[] args)
-		{
-			client.disconnect();
-            prompt = "DwarfKeeper>>";
-			return "Disconnected";
-		}
 
 		/** Connects to the server.
 		 *
@@ -182,7 +172,6 @@ namespace DwarfCLI
 		 */
 		static string exit(string[] args)
 		{
-			disconnect(args);
 			isRunning = false;
 			return "Goodbye";
 		}
@@ -217,7 +206,7 @@ namespace DwarfCLI
             try {
                 return dwarfFuns[cmd](args);
             } catch (KeyNotFoundException knfe) {
-                //TODO: Handle - Print help msg?
+                help(new string[]{});
             }
             return "";
         }
@@ -228,17 +217,19 @@ namespace DwarfCLI
 				string line = Console.ReadLine(); // Get string from user
                 Console.WriteLine(handleCMD(line));
             }
+
+            IsisSystem.Shutdown();
         }
 
 		static void Main(string[] args) 
 		{
             initCommands();
 
-            if(0 == args.Length) {
-                initCLI("");
-            } else {
-                initCLI(args[0]);
+            if(0 < args.Length) {
+                group = args[0];
             }
+
+            initCLI(group);
 
             eventLoop();
 
