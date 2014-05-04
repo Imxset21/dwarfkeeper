@@ -50,7 +50,7 @@ namespace DwarfTest {
 			tree.printTree();
 
 			DwarfTreeRecord tr = new DwarfTreeRecord(tree, 5);
-			DwarfTreeRecord tr2 = null;
+			DwarfTreeRecord tr2;
 			BinaryFormatter b = new BinaryFormatter();
 
 			using(FileStream treeFileStream = new FileStream(
