@@ -261,6 +261,13 @@ namespace DwarfData
 			b.Serialize(s, Data);
 			s.Close();
 
+            foreach (String dir in Directory.GetDirectories(path)) {
+				string lol = Path.GetFileName(dir.TrimEnd(Path.DirectorySeparatorChar));
+                if (!children.ContainsKey(lol)) {
+                    Directory.Delete(dir, true);
+                }
+            }
+
 			// Write children
 			foreach (DwarfTree child in children.Values)
 			{
