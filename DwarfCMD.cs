@@ -36,5 +36,6 @@ namespace DwarfCMD
     public enum IsisDwarfCode {
         OPCODE = 0,
         UPDATE,
+        NEW
     }
 }
