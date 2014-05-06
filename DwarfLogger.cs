@@ -2,7 +2,6 @@ using System;
 using System.Threading;
 using System.IO;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 
 using DwarfListener;
@@ -17,42 +16,28 @@ namespace DwarfLogger
 	// internal
 	public class DwarfLogRecord
 	{
-		public Queue<DwarfCommand> commandQueue;
+		public Queue<DwarfCommand> cmdqueue;
 		public int lastMsgNum;
 
 		public DwarfLogRecord(Queue<DwarfCommand> q, int num)
 		{
-			this.commandQueue = q;
+			this.cmdqueue = q;
 			this.lastMsgNum = num;
 		}
 	}
 
-	[Serializable]
-	// internal
-	public struct DwarfTreeRecord
-	{
-		public DwarfTree tree;
-		public int lastMsgNum;
-
-		public DwarfTreeRecord(DwarfTree t, int num)
-		{
-			this.tree = t;
-			this.lastMsgNum = num;
-		}
-	}
 	
 	public class DwarfLogger : DwarfListener.DwarfListener
 	{
 		public const string DEFAULT_LOG_FILE_NAME = "dwarf_log.dat";
-		public const string DEFAULT_TREE_FILENAME = "dwarf_tree.dat";
+		public const string DEFAULT_TREE_ROOT_PATH = "TreeData";
 		const int DEFAULT_QUEUE_BACKLOG = 5;
 
-		private Queue<DwarfCommand> commandQueue;
 		private string logFileName;
-		private string treeFileName;
+		private string treeRootPath;
 		private int globalMsgNum;
 		
-		public DwarfLogger(string groupname) : this(groupname, DEFAULT_LOG_FILE_NAME, DEFAULT_TREE_FILENAME, 0)
+		public DwarfLogger(string groupname) : this(groupname, DEFAULT_LOG_FILE_NAME, DEFAULT_TREE_ROOT_PATH, 0)
 		{
 			//#2spooky
 		}
@@ -63,11 +48,11 @@ namespace DwarfLogger
          * @param groupname The group that this will be logging for (actual Isis2
          *  groupname will be differentiated automatically)
          */
-		public DwarfLogger(string groupname, string logFilename, string treeFilename, int currMsgNum) : base(groupname)
+		public DwarfLogger(string groupname, string logFilename, string treeRootPath, int currMsgNum) : base(groupname)
 		{
-			this.commandQueue = new Queue<DwarfCommand>();
+			this.cmdqueue = new Queue<DwarfCommand>();
 			this.logFileName = logFilename;
-			this.treeFileName = treeFilename;
+			this.treeRootPath = treeRootPath;
 			this.globalMsgNum = currMsgNum;
 
             base.dwarfGroup.Handlers[(int)IsisDwarfCode.UPDATE] +=
@@ -81,6 +66,13 @@ namespace DwarfLogger
                     t.Start();
                 };
 
+
+            // We want to give new servers our address for a P2P state transfer
+            base.dwarfGroup.Handlers[(int)IsisDwarfCode.NEW] += 
+                (Action)delegate() {
+                    dwarfGroup.Reply(base.address);
+                };
+
             base.dwarfSubGroup = new Group(groupname + "_logger");
 		}			
 
@@ -92,8 +84,7 @@ namespace DwarfLogger
 
 
 		private void writeLog(Queue<DwarfCommand> cmdQueue, int msgNum)
-		{
-			DwarfLogRecord lr = new DwarfLogRecord(cmdQueue, msgNum);
+		{ DwarfLogRecord lr = new DwarfLogRecord(cmdQueue, msgNum);
 			BinaryFormatter b = new BinaryFormatter();
 
 			using(FileStream logFileStream = new FileStream(
@@ -114,6 +105,12 @@ namespace DwarfLogger
             dwarfOps.Add(DwarfCode.SET_NODE, (dwarfOpHandler) setNode);
         }
 
+
+        private void writeTree(DwarfTree tree, int msgnum) {
+            string info_path = 
+                Path.Combine(Directory.GetCurrentDirectory(),  DEFAULT_TREE_ROOT_PATH);
+            writeTree(tree, msgnum, info_path);
+        }
 
 		private void writeTree(DwarfTree tree, int msgNum, string rootpath)
 		{
@@ -137,18 +134,17 @@ namespace DwarfLogger
 
 		private void appendToLog(DwarfCommand cmd)
 		{
-			this.commandQueue.Enqueue(cmd);
+			base.cmdqueue.Enqueue(cmd);
 			this.globalMsgNum += 1;
 
-			if (this.commandQueue.Count >= DEFAULT_QUEUE_BACKLOG)
+			if (base.cmdqueue.Count >= DEFAULT_QUEUE_BACKLOG)
 			{
 				// Swap because we're doing this async
-				Queue<DwarfCommand> tmpQ = this.commandQueue;
+				Queue<DwarfCommand> tmpQ = this.cmdqueue;
 				
-				// @TODO: Make copy constructor for DwarfTree so we can serialize it
 				DwarfTree tmpT = new DwarfTree(this.nodeSys);
 
-				this.commandQueue = new Queue<DwarfCommand>();
+				this.cmdqueue = new Queue<DwarfCommand>();
 
 				ThreadStart ts = new ThreadStart(() => writeLog(tmpQ, this.globalMsgNum));
 				ThreadStart tr = 
@@ -164,9 +160,6 @@ namespace DwarfLogger
 				Thread t2 = new Thread(tr);
 				t1.Start();
 				t2.Start();
-				//this.nodeSys.writeTree(this.treeFileName);
-				//this.nodeSys = DwarfTree.loadTree(this.treeFileName);
-				//this.nodeSys.printTree();
 			}
 		}
 
@@ -249,19 +242,6 @@ namespace DwarfLogger
             }
 		}
 
-		/**
-		 * Gets the value of a given node.
-		 * 
-		 * Note that we only support local gets, so the local parameter
-		 * is ignored.
-		 *
-		 * @param[in]    args    Path to node to get value of.
-		 * @param[in]    local   Ignored in this function.
-		 */
-		protected override void getNode(string args)
-		{
-            ;
-		}
        
 		/**
 		 * Sets the value of a given node.
@@ -313,68 +293,6 @@ namespace DwarfLogger
                 this.appendToLog(new DwarfCommand((int)DwarfCode.SET_NODE, args));
             }
 		}
-		
-		/**
-		 * Checks if the a given node exists.
-		 * 
-		 * Note that we only support local exists, so the local parameter
-		 * is ignored.
-		 *
-		 * @param[in]    args    Path to node to check existance of.
-		 * @param[in]    local   Ignored in this function.
-		 */
-		protected override void exists(string args)
-		{
-            ;
-		}
-
-		/**
-		 * Gets the children of a particular node.
-		 * 
-		 * Note that we only support local tree lookups, so the
-		 * local parameter is ignored.
-		 *
-		 * @param[in]    args    Path to node to get children of.
-		 * @param[in]    local   Ignored in this function.
-		 */
-        protected override void getChildren(string args) 
-		{
-            ;
-        }
-		
-		/**
-		 * Gets the children of a particular node.
-		 * 
-		 * Note that we only support local tree lookups, so the
-		 * local parameter is ignored.
-		 *
-		 * @param[in]    args    Path to node to get children of.
-		 * @param[in]    local   Ignored in this function.
-		 */
-		protected override void getChildren2(string args)
-		{
-            ;
-		}
-		
-		/**
-		 * Gets the children of a particular node and their data.
-		 * 
-		 * Note that we only support local tree lookups, so the
-		 * local parameter is ignored.
-		 *
-		 * @param[in]    args    Path to node to get children and their data from.
-		 * @param[in]    local   Ignored in this function.
-		 */
-
-        protected override void getNodeAll(string args)
-		{
-            ;
-		}
-	
-		protected void sync(string args)
-		{
-			throw new NotImplementedException("Sync is not implemented.");
-		}
 
 
 		static void Main(string[] args)
@@ -398,5 +316,4 @@ namespace DwarfLogger
 		}
 
 	}
-
 }

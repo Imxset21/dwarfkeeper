@@ -1,11 +1,8 @@
 using System;
 using System.IO;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 
-using DwarfLogger;
 using DwarfKeeper;
 using DwarfData;
 
@@ -49,30 +46,9 @@ namespace DwarfTest {
 			tree.addNode("/otherNode/otherNodeChild/otherNodeGrandChild", "22022");
 			tree.printTree();
 
-			DwarfTreeRecord tr = new DwarfTreeRecord(tree, 5);
-			DwarfTreeRecord tr2;
-			BinaryFormatter b = new BinaryFormatter();
 
-			using(FileStream treeFileStream = new FileStream(
-					DwarfLogger.DwarfLogger.DEFAULT_TREE_FILENAME,
-					FileMode.Create,
-					FileAccess.ReadWrite
-					))
-			{
-				b.Serialize(treeFileStream, tr);
-			}
+            //TODO Redo due to new serialization method
 
-			b = new BinaryFormatter();
-
-			using(FileStream treeFileStream = new FileStream(
-					DwarfLogger.DwarfLogger.DEFAULT_TREE_FILENAME,
-					FileMode.Open,
-					FileAccess.Read
-					))
-			{
-				tr2 = (DwarfTreeRecord) b.Deserialize(treeFileStream);
-			}
-			tr2.tree.printTree();
 		}
 
         static void testDwarfTreeCopy() {

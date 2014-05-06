@@ -1,8 +1,4 @@
 using System;
-using System.IO;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
 using System.Collections.Generic;
 using System.Threading;
 
@@ -13,7 +9,6 @@ using Isis;
 
 namespace DwarfServer
 {
-    //TODO: Add logging of some sort to servers - Hook into Isis logging?
 	public class DwarfServer : DwarfListener.DwarfListener
 	{
         private bool initializing = true;
@@ -24,7 +19,6 @@ namespace DwarfServer
 		/////////////////////////
 
 		//! Isis2 Server Group this server will join in addition to full group
-        protected Queue<DwarfCommand> cmdqueue;
 
         List<int> groupCommands = new List<int> {
             (int)DwarfCode.CREATE,
@@ -51,10 +45,45 @@ namespace DwarfServer
             dwarfGroup.Handlers[(int)DwarfCMD.IsisDwarfCode.UPDATE] += 
                                                     (dwarfIsisHandler)groupCmdHandler;
             this.initDwarfHandlers();
+
+            // We don't want a new server talking to a DwarfServer
+            base.dwarfGroup.Handlers[(int)IsisDwarfCode.NEW] += 
+                (Action)delegate() {
+                    dwarfGroup.Reply(IsisSystem.GetNullAddress());
+                };
+			
 		}
 
         public void start() {
             dwarfGroup.Join();
+
+            View curview = dwarfGroup.GetView();
+            if (curview.GetSize() == 1) {
+                List<Address> addrs = new List<Address>();
+                dwarfGroup.OrderedQuery (
+                    Group.ALL,
+                    (int)IsisDwarfCode.NEW,
+                    new EOLMarker(),
+                    addrs
+                );
+
+
+                Predicate<Address> p = delegate(Address a) {
+                    return !(a.Equals(IsisSystem.GetNullAddress()) || a.Equals(this.address));
+                };
+                Console.WriteLine("Before:");
+                foreach (Address a in addrs) {
+                    Console.WriteLine(a);
+                }
+
+                addrs = addrs.FindAll(p);
+
+                Console.WriteLine("After:");
+                foreach (Address a in addrs) {
+                    Console.WriteLine(a);
+                }
+            }
+
 
             // TODO: Retrieve latest tree from Loggers
             Thread.Sleep(2000);
@@ -74,7 +103,7 @@ namespace DwarfServer
                     dwarfSubGroup.SetReplyThread(t);
                     t.Start();
                 };
-			
+
 			// Only allow client requests of the OPCODE kind
             dwarfSubGroup.AllowClientRequests((int)IsisDwarfCode.OPCODE);
             dwarfSubGroup.Join();
@@ -299,7 +328,7 @@ namespace DwarfServer
 		 * @param[in]    args    Path to node to get value of.
 		 * @param[in]    local   Ignored in this function.
 		 */
-		protected override void getNode(string args)
+		protected void getNode(string args)
 		{
             // Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
@@ -399,7 +428,7 @@ namespace DwarfServer
 		 * @param[in]    args    Path to node to check existance of.
 		 * @param[in]    local   Ignored in this function.
 		 */
-		protected override void exists(string args)
+		protected void exists(string args)
 		{
 			// Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
@@ -434,7 +463,7 @@ namespace DwarfServer
 		 * @param[in]    args    Path to node to get children of.
 		 * @param[in]    local   Ignored in this function.
 		 */
-        protected override void getChildren(string args) 
+        protected void getChildren(string args) 
 		{
 			// Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
@@ -468,7 +497,7 @@ namespace DwarfServer
 		 * @param[in]    args    Path to node to get children of.
 		 * @param[in]    local   Ignored in this function.
 		 */
-		protected override void getChildren2(string args)
+		protected void getChildren2(string args)
 		{
 			// Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
@@ -504,7 +533,7 @@ namespace DwarfServer
 		 * @param[in]    args    Path to node to get children and their data from.
 		 * @param[in]    local   Ignored in this function.
 		 */
-        protected override void getNodeAll(string args)
+        protected void getNodeAll(string args)
 		{
 			// Make sure our args aren't null before parsing
 			if (String.IsNullOrEmpty(args))
@@ -538,10 +567,6 @@ namespace DwarfServer
             dwarfSubGroup.Reply(new DwarfStat("0xDEADWARF-TEST"));
         }
 		
-		protected void sync(string args)
-		{
-			throw new NotImplementedException("Sync is not implemented.");
-		}
 		
 		static void Main(string[] args)
 		{

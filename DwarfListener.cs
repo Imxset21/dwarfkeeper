@@ -1,8 +1,3 @@
-using System;
-using System.IO;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
 using System.Collections.Generic;
 using System.Threading;
 
@@ -29,12 +24,18 @@ namespace DwarfListener
 		//! Underlying node file system
         protected DwarfTree nodeSys;
 
+        //! Storage queue for commands that have been recieved but cannot yet be handled
+        protected Queue<DwarfCommand> cmdqueue;
+
 		//! Op-Code to Method dictionary for handling requests
         protected Dictionary<DwarfCode, dwarfOpHandler> dwarfOps;
 
 		//! Isis2 Group this server will join
         protected Group dwarfGroup;
         protected Group dwarfSubGroup;
+
+        //! The Adress of this server (for P2P communication)
+        protected Address address;
 
 		/////////////////////////////// 
 		// Dwarf Server Constructors //
@@ -61,15 +62,10 @@ namespace DwarfListener
 
             Isis.Msg.RegisterType(typeof(DwarfCommand), 111);
             Isis.Msg.RegisterType(typeof(DwarfStat), 113);
+
+            address = IsisSystem.GetMyAddress();
 		}
 
-
-        protected void joinGroup() {
-            dwarfGroup.Join();
-        }
-        protected void joinSubGroup() {
-            dwarfSubGroup.Join();
-        }
 
 		//////////////////////////////////////
 		// Protected Initialization Methods //
@@ -136,16 +132,6 @@ namespace DwarfListener
 		 */
 		protected abstract void delete(string args);
 
-		/**
-		 * Gets the value of a given node.
-		 * 
-		 * Note that we only support local gets, so the local parameter
-		 * is ignored.
-		 *
-		 * @param[in]    args    Path to node to get value of.
-		 * @param[in]    local   Ignored in this function.
-		 */
-		protected abstract void getNode(string args);
 
 		/**
 		 * Sets the value of a given node.
@@ -172,50 +158,6 @@ namespace DwarfListener
 		 */
 		protected abstract void setNode(string args);
 		
-		
-		/**
-		 * Checks if the a given node exists.
-		 * 
-		 * Note that we only support local exists, so the local parameter
-		 * is ignored.
-		 *
-		 * @param[in]    args    Path to node to check existance of.
-		 * @param[in]    local   Ignored in this function.
-		 */
-		protected abstract void exists(string args);
-
-		/**
-		 * Gets the children of a particular node.
-		 * 
-		 * Note that we only support local tree lookups, so the
-		 * local parameter is ignored.
-		 *
-		 * @param[in]    args    Path to node to get children of.
-		 * @param[in]    local   Ignored in this function.
-		 */
-        protected abstract void getChildren(string args);
-		
-		/**
-		 * Gets the children of a particular node.
-		 * 
-		 * Note that we only support local tree lookups, so the
-		 * local parameter is ignored.
-		 *
-		 * @param[in]    args    Path to node to get children of.
-		 * @param[in]    local   Ignored in this function.
-		 */
-		protected abstract void getChildren2(string args);
-		
-		/**
-		 * Gets the children of a particular node and their data.
-		 * 
-		 * Note that we only support local tree lookups, so the
-		 * local parameter is ignored.
-		 *
-		 * @param[in]    args    Path to node to get children and their data from.
-		 * @param[in]    local   Ignored in this function.
-		 */
-        protected abstract void getNodeAll(string args);
 
         protected virtual void printTreeLoop() 
 		{
@@ -224,6 +166,11 @@ namespace DwarfListener
                 Thread.Sleep(5000);
             }
         }
+        
+		protected virtual void sync(string args)
+		{
+            dwarfGroup.Flush();
+		}
     }
 }
 
