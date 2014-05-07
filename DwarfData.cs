@@ -186,6 +186,11 @@ namespace DwarfData
          *             Must be a values in range [0, path length)
          */
         public DwarfTree findNode(string path, int stop = 0) {
+            
+            if(string.IsNullOrWhiteSpace(path)) {
+                return null;
+            }
+
             DwarfTree subtree = this;
             string loc;
 			string[] path_elements = path.Split(pathdelim, StringSplitOptions.RemoveEmptyEntries);
