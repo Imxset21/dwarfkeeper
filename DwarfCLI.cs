@@ -1,13 +1,9 @@
 using System;
-using System.Net;
-using System.Net.Sockets;
-using System.IO;
 using System.Text;
 using System.Collections.Generic;
 
 using DwarfKeeper; // Import Client
 using DwarfData;
-using DwarfCMD;
 using Isis;
 
 
@@ -15,7 +11,7 @@ namespace DwarfCLI
 {
     delegate string dwarfFun(string[] args);
 
-	public class DwarfCLI
+	public abstract class DwarfCLI
 	{
 		private static bool isRunning = false;                    //!< Current running status
 		private static DwarfClient client;                        //!< Client backend
@@ -53,7 +49,11 @@ namespace DwarfCLI
                         "Display information about all commands, or the specific one chosen"}}
         };
 
-        static void initCLI(String groupname = "") {
+        /** Initialize the CLI, starting an Isis2 client instance if the groupname is given.
+         *
+         * @param groupname The name of the Isis2 group to connect to
+         */
+        static void initCLI(string groupname = "") {
 		    if(string.IsNullOrWhiteSpace(groupname)) {
                 client = null;
             } else {
@@ -62,8 +62,10 @@ namespace DwarfCLI
             isRunning = true;
         }
 
+        /** Initialize the commands dictionary with mappings from string commands
+         *  to the correct handling methods.
+         */
         static void initCommands() {
-			// Setup delegate dictionary
 			dwarfFuns = new Dictionary<string, dwarfFun>();
 			dwarfFuns["connect"] = (dwarfFun)connect;
 			dwarfFuns["exit"] = (dwarfFun)exit;
@@ -87,6 +89,8 @@ namespace DwarfCLI
 			return isRunning;
 		}
         
+        /** Generate a help statement, specific for the command if possible
+         */
         static string help(string[] args) {
             string helpstring = "";
             if(args.Length > 0) {
@@ -196,7 +200,7 @@ namespace DwarfCLI
 
             if (1 == cmdAndArgs.Length) {
                 if(!noArgCmds.Contains(cmd)) {
-                    return "Arguments required for cmd: " + cmd;
+                    return help(new string[]{cmd});
                 }
                 args = new string[]{};
             } else {
@@ -206,9 +210,10 @@ namespace DwarfCLI
             try {
                 return dwarfFuns[cmd](args);
             } catch (KeyNotFoundException knfe) {
-                help(new string[]{});
+                return help(new string[]{});
             }
-            return "";
+
+            return "Command not recognized";
         }
 
         static void eventLoop() {
